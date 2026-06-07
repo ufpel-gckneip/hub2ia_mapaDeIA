@@ -1,0 +1,24 @@
+# core
+pandas>=2.0
+numpy>=1.24
+
+# scraping (01_crawl_sbc)
+requests>=2.31
+beautifulsoup4>=4.12
+lxml>=4.9
+
+# NLP (03_extract_topics)
+sentence-transformers>=2.2
+
+# clustering (03_extract_topics)
+scikit-learn>=1.3
+hdbscan>=0.8.33
+
+# graph & viz (04_explore)
+networkx>=3.1
+matplotlib>=3.7
+plotly>=5.15
+wordcloud>=1.9
+
+# IO
+pyarrow>=12.0
