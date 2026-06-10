@@ -34,6 +34,18 @@ import umap
 import hdbscan
 from sklearn.feature_extraction.text import TfidfVectorizer
 from pathlib import Path
+import logging
+from datetime import datetime
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+log = logging.getLogger(__name__)
+
+LOG_DIR = Path("logs/03_extract_topics")
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+_fh = logging.FileHandler(LOG_DIR / f"{_timestamp}.txt", encoding="utf-8")
+_fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+log.addHandler(_fh)
 
 # %%
 DATA_DIR = Path("data")
@@ -42,6 +54,7 @@ OUTPUT_FILE = DATA_DIR / "clean" / "researchers_with_topics.parquet"
 
 df = pd.read_parquet(CLEAN_FILE)
 print(f"Carregados {len(df)} pesquisadores")
+log.info("Carregados %d pesquisadores", len(df))
 
 # %%
 # Concatenar títulos + resumos de todos os artigos de cada pesquisador
@@ -56,10 +69,12 @@ for _, row in df.iterrows():
 
 df["text"] = texts
 print(f"Textos criados. Comprimento médio: {np.mean([len(t.split()) for t in texts]):.0f} palavras")
+log.info("Textos criados. Comprimento médio: %.0f palavras", np.mean([len(t.split()) for t in texts]))
 
 # %%
 model = SentenceTransformer("all-MiniLM-L6-v2")
 print("Modelo carregado. Gerando embeddings...")
+log.info("Modelo carregado. Gerando embeddings...")
 
 embeddings = model.encode(
     texts,
@@ -68,12 +83,14 @@ embeddings = model.encode(
     normalize_embeddings=True,
 )
 print(f"Embeddings: {embeddings.shape}")
+log.info("Embeddings: %s", embeddings.shape)
 
 # %%
 # Reduzir dimensionalidade para clustering
 reducer = umap.UMAP(n_components=10, metric="cosine", random_state=42, n_jobs=1)
 reduced = reducer.fit_transform(embeddings)
 print(f"Reduzido: {reduced.shape}")
+log.info("Reduzido UMAP: %s", reduced.shape)
 
 # %%
 # Clusterizar com HDBSCAN
@@ -87,16 +104,44 @@ cluster_labels = clusterer.fit_predict(reduced)
 n_clusters = len(set(cluster_labels) - {-1})
 n_noise = (cluster_labels == -1).sum()
 print(f"Clusterização: {n_clusters} clusters + {n_noise} pontos de ruído")
+log.info("Clusterização: %d clusters + %d pontos de ruído", n_clusters, n_noise)
 
 # %%
 # Extrair tópicos: TF-IDF por cluster
+PT_STOPWORDS = [
+    "a", "ao", "aos", "aquela", "aquelas", "aquele", "aqueles", "aquilo",
+    "as", "até", "com", "como", "da", "das", "de", "dela", "delas", "dele",
+    "deles", "depois", "do", "dos", "e", "ela", "elas", "ele", "eles",
+    "em", "entre", "era", "eram", "essa", "essas", "esse", "esses", "esta",
+    "estamos", "estas", "estava", "estavam", "este", "esteja", "estejam",
+    "estes", "esteve", "estivemos", "estiver", "estivera", "estiveram",
+    "estivesse", "estivessem", "estou", "eu", "foi", "fomos", "for",
+    "fora", "foram", "forem", "fosse", "fossem", "haja", "hajam", "hão",
+    "isso", "isto", "já", "lhe", "lhes", "lo", "mas", "me", "mesmo",
+    "meu", "meus", "minha", "minhas", "muita", "muitas", "muito", "muitos",
+    "na", "não", "nas", "nem", "nenhum", "nessa", "nessas", "nesta", "nestas",
+    "ninguém", "no", "nos", "nós", "nossa", "nossas", "nosso", "nossos",
+    "num", "numa", "numas", "nuns", "o", "os", "ou", "para", "pela", "pelas",
+    "pelo", "pelos", "pode", "podem", "podendo", "poder", "poderia",
+    "poderiam", "pois", "por", "porém", "porque", "posso", "pouca", "poucas",
+    "pouco", "poucos", "primeiro", "próprio", "quais", "qual", "quando",
+    "quanto", "quantos", "que", "quem", "são", "se", "seja", "sejam", "sem",
+    "sempre", "sendo", "ser", "será", "serão", "seria", "seriam", "seu",
+    "seus", "si", "sido", "só", "sob", "sobre", "suas", "tal", "também",
+    "tampouco", "tais", "tanto", "te", "tem", "temos", "tendo", "tenha",
+    "tenham", "ter", "teu", "teus", "teve", "tive", "tivemos", "tiver",
+    "tivera", "tiveram", "tivesse", "tivessem", "to", "tu", "tua", "tuas",
+    "tudo", "um", "uma", "umas", "uns", "você", "vocês", "vós",
+]
+
 def extract_topics(texts_by_cluster, top_n=5):
     cluster_ids = sorted(texts_by_cluster.keys())
     corpus = [" ".join(texts_by_cluster[cid]) for cid in cluster_ids]
     vec = TfidfVectorizer(
-        stop_words="english",
-        max_features=5000,
+        stop_words=PT_STOPWORDS,
+        max_features=1000,
         ngram_range=(1, 2),
+        max_df=0.8,
     )
     tfidf = vec.fit_transform(corpus)
     feature_names = vec.get_feature_names_out()
@@ -123,7 +168,8 @@ for cid, keywords in topics.items():
     if cid == -1:
         topic_names[cid] = "Outros"
     else:
-        topic_names[cid] = ", ".join(keywords[:3])
+        name = ", ".join(keywords[:3])
+        topic_names[cid] = name if name else f"Tópico {cid}"
 
 df["topic_keywords"] = df["cluster"].map(
     lambda c: topics.get(c, [])
@@ -136,10 +182,12 @@ for cid, name in sorted(topic_names.items()):
     n = (df["cluster"] == cid).sum()
     label = "RUÍDO" if cid == -1 else f"Cluster {cid}"
     print(f"  {label:12s} ({n:4d}) → {name}")
+    log.info("  %-12s (%4d) → %s", label, n, name)
 
 # %%
 drop_cols = ["text"]
 out = df.drop(columns=[c for c in drop_cols if c in df.columns])
 out.to_parquet(OUTPUT_FILE)
 print(f"\nSalvo em {OUTPUT_FILE}")
+log.info("Salvo em %s", OUTPUT_FILE)
 out.head()

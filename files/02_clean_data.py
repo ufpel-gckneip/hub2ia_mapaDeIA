@@ -24,7 +24,19 @@
 import pandas as pd
 import unicodedata
 import re
+import logging
+from datetime import datetime
 from pathlib import Path
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+log = logging.getLogger(__name__)
+
+LOG_DIR = Path("logs/02_clean_data")
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+_fh = logging.FileHandler(LOG_DIR / f"{_timestamp}.txt", encoding="utf-8")
+_fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+log.addHandler(_fh)
 
 # %%
 DATA_DIR = Path("data")
@@ -35,6 +47,7 @@ CLEAN_DIR.mkdir(parents=True, exist_ok=True)
 # %%
 df = pd.read_parquet(RAW_FILE)
 print(f"Carregados {len(df)} artigos, {df['event_acronym'].nunique()} eventos")
+log.info("Carregados %d artigos, %d eventos", len(df), df["event_acronym"].nunique())
 
 # %%
 def normalize_name(name: str) -> str:
@@ -71,6 +84,8 @@ exploded = pd.DataFrame(rows)
 exploded["normalized_name"] = exploded["author_name"].apply(normalize_name)
 print(f"Total de linhas (autor-artigo): {len(exploded)}")
 print(f"Autores únicos (normalizados): {exploded['normalized_name'].nunique()}")
+log.info("Total de linhas (autor-artigo): %d", len(exploded))
+log.info("Autores únicos (normalizados): %d", exploded["normalized_name"].nunique())
 
 # %%
 # Agrupar por nome normalizado
@@ -105,8 +120,12 @@ researchers_df = researchers_df.sort_values("n_articles", ascending=False).reset
 print(f"\nTotal de pesquisadores: {len(researchers_df)}")
 print(f"Média de artigos/pesquisador: {researchers_df['n_articles'].mean():.2f}")
 print(f"Máx: {researchers_df['n_articles'].max()}")
+log.info("Total de pesquisadores: %d", len(researchers_df))
+log.info("Média de artigos/pesquisador: %.2f", researchers_df["n_articles"].mean())
+log.info("Máx: %d", researchers_df["n_articles"].max())
 
 # %%
 researchers_df.to_parquet(CLEAN_DIR / "researchers.parquet")
 print(f"\nSalvo em {CLEAN_DIR / 'researchers.parquet'}")
+log.info("Salvo em %s", CLEAN_DIR / "researchers.parquet")
 researchers_df.head()
