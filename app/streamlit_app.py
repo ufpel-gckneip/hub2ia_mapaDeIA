@@ -1,9 +1,17 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import json
 from pathlib import Path
-from pyvis.network import Network
 import tempfile
+import networkx as nx
+from pyvis.network import Network
+import plotly.graph_objects as go
+import plotly.io as pio
+import math
+import folium
+from folium.plugins import MarkerCluster
+from collections import defaultdict, Counter
 
 st.set_page_config(
     page_title="Mapa de IA — Pesquisadores Brasileiros",
@@ -14,19 +22,36 @@ st.set_page_config(
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 
+STATE_ABBR_TO_NAME = {
+    "AC": "Acre", "AL": "Alagoas", "AP": "Amapá", "AM": "Amazonas",
+    "BA": "Bahia", "CE": "Ceará", "DF": "Distrito Federal", "ES": "Espírito Santo",
+    "GO": "Goiás", "MA": "Maranhão", "MT": "Mato Grosso", "MS": "Mato Grosso do Sul",
+    "MG": "Minas Gerais", "PA": "Pará", "PB": "Paraíba", "PR": "Paraná",
+    "PE": "Pernambuco", "PI": "Piauí", "RJ": "Rio de Janeiro", "RN": "Rio Grande do Norte",
+    "RS": "Rio Grande do Sul", "RO": "Rondônia", "RR": "Roraima", "SC": "Santa Catarina",
+    "SP": "São Paulo", "SE": "Sergipe", "TO": "Tocantins",
+}
+
+NAME_TO_STATE_ABBR = {v: k for k, v in STATE_ABBR_TO_NAME.items()}
+
+
 @st.cache_data
 def load_data(_cache_key: str):
     researchers = pd.read_parquet(DATA_DIR / "clean" / "researchers_with_topics.parquet")
     articles = pd.read_parquet(DATA_DIR / "raw" / "sbc_articles.parquet")
     with open(DATA_DIR / "output" / "coauthorship.json") as f:
         graph_data = json.load(f)
-    return researchers, articles, graph_data
+    with open(DATA_DIR / "output" / "researchers_geo.json") as f:
+        researchers_geo = json.load(f)
+    with open(DATA_DIR / "brazil_states.geojson") as f:
+        brazil_states = json.load(f)
+    return researchers, articles, graph_data, researchers_geo, brazil_states
 
 
 _cache_key = str(
     (DATA_DIR / "raw" / "sbc_articles.parquet").stat().st_mtime
 )
-researchers, articles, graph_data = load_data(_cache_key)
+researchers, articles, graph_data, researchers_geo, brazil_states = load_data(_cache_key)
 
 # Handle pending topic selection from topic network tab
 if "pending_topic" in st.session_state:
@@ -63,106 +88,255 @@ st.sidebar.markdown(f"**{len(filtered)}** pesquisadores filtrados")
 
 # ── Tabs ──
 
-tab_topicnet, tab_map, tab_table, tab_topics, tab_stats, tab_articles = st.tabs(
-    ["🗺️ Mapa", "🗺️ Mapa de Coautoria", "📋 Pesquisadores", "📊 Tópicos", "📈 Estatísticas", "📄 Artigos"]
+tab_geomap, tab_map, tab_table, tab_topics, tab_stats, tab_articles = st.tabs(
+    ["🗺️ Mapa Demográfico", "🗺️ Mapa de Coautoria", "📋 Pesquisadores", "📊 Tópicos", "📈 Estatísticas", "📄 Artigos"]
 )
 
 # ── Tab 1: Topic Network ──
 
-with tab_topicnet:
-    st.subheader("Rede de Tópicos")
+with tab_geomap:
+    st.subheader("Mapa Demográfico de Pesquisadores")
 
-    researcher_topic = (
-        researchers[researchers["cluster"] >= 0]
-        .set_index("normalized_name")["topic_name"]
-        .to_dict()
-    )
+    col1, col2 = st.columns([3, 1])
 
-    topic_counts = (
-        researchers[researchers["cluster"] >= 0]["topic_name"]
-        .value_counts()
-        .to_dict()
-    )
+    with col2:
+        show_edges = st.checkbox("Mostrar interações entre estados", value=True)
+        edge_min_weight = st.slider("Força mín. de interação", min_value=1, max_value=20, value=3)
+        max_markers = st.slider("Máx. pesquisadores", min_value=100, max_value=8000, value=3000, step=100)
 
-    topic_weights = {}
-    for e in graph_data["edges"]:
-        t1 = researcher_topic.get(e["source"])
-        t2 = researcher_topic.get(e["target"])
-        if t1 and t2 and t1 != t2:
-            pair = tuple(sorted([t1, t2]))
-            topic_weights[pair] = topic_weights.get(pair, 0) + 1
+    with col1:
+        # Filter researchers_geo by sidebar filters
+        filtered_geo = [r for r in researchers_geo if r["n_articles"] >= min_articles]
+        if selected_topics:
+            filtered_geo = [r for r in filtered_geo if r.get("topic_name") in selected_topics]
+        if search:
+            filtered_geo = [r for r in filtered_geo if search.lower() in r["display_name"].lower()]
 
-    palette = [
-        "#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231",
-        "#911eb4", "#42d4f4", "#f032e6", "#bfef45", "#fabed4",
-        "#469990", "#dcbeff", "#9a6324", "#800000", "#aaffc3",
-        "#808000", "#ffd8b1", "#000075", "#a9a9a9",
-    ]
-    topics_sorted = sorted(topic_counts.keys())
-    topic_colors = {t: palette[i % len(palette)] for i, t in enumerate(topics_sorted)}
+        # Limit markers
+        filtered_geo = filtered_geo[:max_markers]
 
-    net = Network(height="500px", width="100%", bgcolor="#ffffff", font_color="#333333")
+        if not filtered_geo:
+            st.info("Nenhum pesquisador encontrado com esses filtros.")
+        else:
+            # Build topic name -> color palette
+            palette = [
+                "#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231",
+                "#911eb4", "#42d4f4", "#f032e6", "#bfef45", "#fabed4",
+                "#469990", "#dcbeff", "#9a6324", "#800000", "#aaffc3",
+                "#808000", "#ffd8b1", "#000075", "#a9a9a9", "#e6beff",
+                "#1a1a1a", "#ff7f7f", "#7fff7f", "#7f7fff", "#ffff7f",
+            ]
+            all_topics_in_view = sorted(set(r.get("topic_name") or "Sem tópico" for r in filtered_geo))
+            topic_color = {t: palette[i % len(palette)] for i, t in enumerate(all_topics_in_view)}
 
-    for topic in topics_sorted:
-        count = topic_counts[topic]
-        net.add_node(
-            topic,
-            label=topic,
-            size=min(max(count * 0.15, 15), 60),
-            title=f"{topic}\n{count} pesquisadores",
-            color=topic_colors[topic],
-        )
+            # ── Compute state aggregates ──
+            state_counts = Counter()
+            state_articles = Counter()
+            state_topics = defaultdict(Counter)
+            state_institutions = defaultdict(Counter)
+            for r in filtered_geo:
+                st_abbr = r.get("state", "")
+                if st_abbr in STATE_ABBR_TO_NAME:
+                    state_counts[st_abbr] += 1
+                    state_articles[st_abbr] += r["n_articles"]
+                    t = r.get("topic_name")
+                    if t:
+                        state_topics[st_abbr][t] += 1
+                    inst = r.get("primary_affiliation", "")
+                    if inst:
+                        state_institutions[st_abbr][inst] += 1
 
-    for (t1, t2), w in sorted(topic_weights.items(), key=lambda x: -x[1]):
-        net.add_edge(
-            t1, t2,
-            value=min(w * 0.3, 10),
-            width=min(w * 0.3, 8),
-            title=f"{w} coautorias entre tópicos",
-        )
+            # ── Folium map ──
+            m = folium.Map(location=[-14.235, -51.925], zoom_start=4, tiles="CartoDB positron")
 
-    net.set_options("""
-    {
-      "physics": {
-        "barnesHut": {
-          "gravitationalConstant": -3000,
-          "springConstant": 0.005,
-          "springLength": 200
-        },
-        "minVelocity": 0.75,
-        "timestep": 0.5
-      },
-      "interaction": {
-        "hover": true,
-        "tooltipDelay": 200
-      },
-      "edges": {
-        "color": {"inherit": true},
-        "smooth": false
-      }
-    }
-    """)
+            # ── State polygon layer ──
+            max_state_count = max(state_counts.values()) if state_counts else 1
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".html") as tmp:
-        net.save_graph(tmp.name)
-        st.components.v1.html(open(tmp.name).read(), height=520, scrolling=True)
+            # Enrich GeoJSON features with aggregate data
+            state_geojson_enriched = json.loads(json.dumps(brazil_states))
+            for feature in state_geojson_enriched["features"]:
+                name = feature["properties"]["name"]
+                abbr = NAME_TO_STATE_ABBR.get(name, "")
+                count = state_counts.get(abbr, 0)
+                articles_sum = state_articles.get(abbr, 0)
+                top_ts = state_topics[abbr].most_common(5)
+                top_insts = state_institutions[abbr].most_common(5)
+                feature["properties"]["count"] = count
+                feature["properties"]["articles"] = articles_sum
+                feature["properties"]["top_topics"] = ", ".join(f"{t} ({c})" for t, c in top_ts)
+                feature["properties"]["top_insts"] = ", ".join(f"{i} ({c})" for i, c in top_insts)
 
-    st.divider()
-    st.markdown("### Selecionar Tópico")
-    st.caption("Clique em um tópico para filtrar o Mapa de Coautoria")
+            def state_style(feature):
+                count = feature["properties"].get("count", 0)
+                if count == 0:
+                    fill_color = "#f0f0f0"
+                else:
+                    intensity = min(count / max_state_count, 1.0)
+                    r_val = int(255 * (1 - intensity))
+                    g_val = int(255 * (1 - intensity * 0.3))
+                    fill_color = f"#{r_val:02x}{g_val:02x}ff"
+                return {
+                    "fillColor": fill_color,
+                    "color": "#555",
+                    "weight": 1.5,
+                    "fillOpacity": 0.5,
+                }
 
-    cols_per_row = 4
-    for i in range(0, len(topics_sorted), cols_per_row):
-        row_topics = topics_sorted[i:i + cols_per_row]
-        cols = st.columns(cols_per_row)
-        for col, topic in zip(cols, row_topics):
-            with col:
-                if st.button(topic, use_container_width=True, key=f"tbtn_{topic}"):
-                    st.session_state["pending_topic"] = topic
-                    st.rerun()
+            folium.GeoJson(
+                state_geojson_enriched,
+                style_function=state_style,
+                highlight_function=lambda _: {"weight": 3, "color": "#333", "fillOpacity": 0.6},
+                tooltip=folium.GeoJsonTooltip(
+                    fields=["name", "count"],
+                    aliases=["Estado:", "Pesquisadores:"],
+                    style="font-size:13px;",
+                ),
+                popup=folium.GeoJsonPopup(
+                    fields=["name", "count", "articles", "top_topics", "top_insts"],
+                    aliases=["Estado:", "Pesquisadores:", "Artigos:", "Top tópicos:", "Top instituições:"],
+                    style="font-size:13px; min-width:220px;",
+                    localize=True,
+                ),
+            ).add_to(m)
 
-    if st.session_state.get("topic_sync"):
-        st.info(f"Tópico ativo: {st.session_state['topic_sync'][0]}")
+            # ── Click-to-zoom on state polygons ──
+            map_name = m.get_name()
+            zoom_js = f"""
+            <script>
+            (function() {{
+                var stateLayer = null;
+                {map_name}.eachLayer(function(layer) {{
+                    if (layer instanceof L.GeoJSON && !stateLayer) {{
+                        stateLayer = layer;
+                    }}
+                }});
+                if (stateLayer) {{
+                    stateLayer.eachLayer(function(feature) {{
+                        feature.on('click', function(e) {{
+                            {map_name}.fitBounds(e.target.getBounds(), {{padding: [30, 30]}});
+                        }});
+                    }});
+                }}
+            }})();
+            </script>
+            """
+            m.get_root().html.add_child(folium.Element(zoom_js))
+
+            # ── MarkerCluster for performance ──
+            marker_cluster = MarkerCluster().add_to(m)
+
+            for r in filtered_geo:
+                topic = r.get("topic_name") or "Sem tópico"
+                color = topic_color.get(topic, "#888888")
+                popup_text = f"""
+                <b>{r['display_name']}</b><br>
+                Artigos: {r['n_articles']}<br>
+                Tópico: {topic}<br>
+                Instituição: {r.get('primary_affiliation', '—')}<br>
+                Cidade: {r.get('city', '—')} / {r.get('state', '—')}
+                """
+                folium.CircleMarker(
+                    location=[r["lat"], r["lng"]],
+                    radius=6 + min(r["n_articles"], 20) * 0.8,
+                    color=color,
+                    fill=True,
+                    fill_color=color,
+                    fill_opacity=0.7,
+                    popup=folium.Popup(popup_text, max_width=300),
+                    tooltip=r["display_name"],
+                ).add_to(marker_cluster)
+
+            def bezier_curve(lat1, lng1, lat2, lng2, curvature=0.12, n=40):
+                pts = []
+                for i in range(n + 1):
+                    t = i / n
+                    a = (1 - t) ** 2
+                    b = 2 * (1 - t) * t
+                    c = t ** 2
+                    mx, my = (lat1 + lat2) / 2, (lng1 + lng2) / 2
+                    dx, dy = lat2 - lat1, lng2 - lng1
+                    d = math.hypot(dx, dy)
+                    if d < 1e-12:
+                        pts.append([mx, my])
+                        continue
+                    nx, ny = -dy / d, dx / d
+                    cx, cy = mx + nx * curvature * d, my + ny * curvature * d
+                    lat = a * lat1 + b * cx + c * lat2
+                    lng = a * lng1 + b * cy + c * lng2
+                    pts.append([lat, lng])
+                return pts
+
+            # ── Interaction edges ──
+            if show_edges and len(filtered_geo) > 1:
+                filtered_ids = set(r["normalized_name"] for r in filtered_geo)
+                r_state = {r["normalized_name"]: r.get("state") for r in filtered_geo}
+
+                state_interactions = Counter()
+                for e in graph_data["edges"]:
+                    s, t = e["source"], e["target"]
+                    if s in filtered_ids and t in filtered_ids:
+                        ss = r_state.get(s)
+                        stt = r_state.get(t)
+                        if ss and stt and ss != stt and ss in STATE_ABBR_TO_NAME and stt in STATE_ABBR_TO_NAME:
+                            pair = tuple(sorted([ss, stt]))
+                            state_interactions[pair] += e.get("weight", 1)
+
+                state_centroids = {}
+                state_lats = defaultdict(list)
+                state_lngs = defaultdict(list)
+                for r in filtered_geo:
+                    s = r.get("state")
+                    if s in STATE_ABBR_TO_NAME:
+                        state_lats[s].append(r["lat"])
+                        state_lngs[s].append(r["lng"])
+                for s in state_lats:
+                    state_centroids[s] = (
+                        sum(state_lats[s]) / len(state_lats[s]),
+                        sum(state_lngs[s]) / len(state_lngs[s]),
+                    )
+
+                for edge_idx, ((s1, s2), w) in enumerate(state_interactions.most_common(50)):
+                    if w >= edge_min_weight:
+                        if s1 in state_centroids and s2 in state_centroids:
+                            lat1, lng1 = state_centroids[s1]
+                            lat2, lng2 = state_centroids[s2]
+                            name1 = STATE_ABBR_TO_NAME.get(s1, s1)
+                            name2 = STATE_ABBR_TO_NAME.get(s2, s2)
+                            opacity = min(w / 20, 0.8)
+                            sign = 1 if edge_idx % 2 == 0 else -1
+                            pts = bezier_curve(lat1, lng1, lat2, lng2, curvature=0.12 * sign)
+                            folium.PolyLine(
+                                locations=pts,
+                                color="#e74c3c",
+                                weight=min(w * 0.4, 6),
+                                opacity=opacity,
+                                tooltip=f"{name1} ↔ {name2}: {w} coautorias",
+                                popup=f"{name1}<br>↔<br>{name2}<br>{w} coautorias",
+                            ).add_to(m)
+
+            # ── Legend via HTML ──
+            topic_legend_items = []
+            for t in all_topics_in_view[:30]:
+                c = topic_color.get(t, "#888")
+                topic_legend_items.append(
+                    f'<li><span style="background:{c};display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;"></span>{t}</li>'
+                )
+            legend_html = f"""
+            <div style="position:absolute;z-index:999;bottom:20px;left:20px;background:white;padding:10px;border-radius:6px;box-shadow:0 0 8px rgba(0,0,0,0.15);max-height:300px;overflow-y:auto;font-size:12px;max-width:250px;">
+                <b>Tópicos</b>
+                <ul style="list-style:none;padding:0;margin:4px 0 0 0;">
+                {"".join(topic_legend_items)}
+                </ul>
+                <span style="color:#888;font-size:10px;">mostrando até 30 tópicos</span>
+            </div>
+            """
+            m.get_root().html.add_child(folium.Element(legend_html))
+
+            # Save map to HTML and render
+            map_html = m.get_root().render()
+            components.html(map_html, height=620, scrolling=True)
+
+            st.caption(f"{len(filtered_geo)} pesquisadores no mapa • Estados coloridos por densidade • Círculos = pesquisadores • Linhas = coautorias entre estados • Clique no estado para zoom")
 
 # ── Tab 2: Coauthorship Map ──
 

@@ -20,5 +20,10 @@ matplotlib>=3.7
 plotly>=5.15
 wordcloud>=1.9
 
+# map (05_geocode & streamlit)
+folium>=0.16
+geopy>=2.4
+branca>=0.7
+
 # IO
 pyarrow>=12.0

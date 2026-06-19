@@ -150,9 +150,32 @@ def extract_topics(texts_by_cluster, top_n=5):
     for i, cid in enumerate(cluster_ids):
         scores = tfidf[i].toarray().flatten()
         top_indices = scores.argsort()[-top_n:][::-1]
-        keywords = [feature_names[idx] for idx in top_indices if scores[idx] > 0]
+        keywords = [
+            (feature_names[idx], float(scores[idx]))
+            for idx in top_indices if scores[idx] > 0
+        ]
         topics[cid] = keywords
     return topics
+
+
+def assign_unique_topic_names(topics_with_scores):
+    from collections import defaultdict
+
+    word_best_cluster = {}
+    for cid, kw_scores in topics_with_scores.items():
+        for kw, score in kw_scores:
+            if kw not in word_best_cluster or score > word_best_cluster[kw][1]:
+                word_best_cluster[kw] = (cid, score)
+
+    cluster_words = defaultdict(list)
+    for word, (cid, _) in word_best_cluster.items():
+        cluster_words[cid].append(word)
+
+    topic_names = {}
+    for cid, words in cluster_words.items():
+        topic_names[cid] = words[0]
+
+    return topic_names
 
 
 df["cluster"] = cluster_labels
@@ -162,17 +185,12 @@ texts_by_cluster = {
 }
 topics = extract_topics(texts_by_cluster, top_n=5)
 
-# Mapear cluster_id → tópico
-topic_names = {}
-for cid, keywords in topics.items():
-    if cid == -1:
-        topic_names[cid] = "Outros"
-    else:
-        name = ", ".join(keywords[:3])
-        topic_names[cid] = name if name else f"Tópico {cid}"
+# Mapear cluster_id → tópico (palavra única por cluster)
+topic_names = assign_unique_topic_names(topics)
+topic_names[-1] = "Outros"
 
 df["topic_keywords"] = df["cluster"].map(
-    lambda c: topics.get(c, [])
+    lambda c: [kw for kw, _ in topics.get(c, [])]
 )
 df["topic_name"] = df["cluster"].map(topic_names)
 

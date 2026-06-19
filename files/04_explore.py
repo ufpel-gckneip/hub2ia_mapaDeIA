@@ -31,6 +31,8 @@ from pathlib import Path
 import json
 import logging
 from datetime import datetime
+import unicodedata
+import re
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
@@ -178,19 +180,20 @@ log.info("Nuvem salva: %s", OUT_DIR / "wordcloud_titles.png")
 
 G = nx.Graph()
 
-# Nós: todos os autores normalizados
+# Nós: todos os autores normalizados (mesma normalização de 02_clean_data.py)
+def normalize_name(name: str) -> str:
+    name = name.lower().strip()
+    name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
+    name = re.sub(r"[^a-z0-9 ]", "", name)
+    name = re.sub(r"\s+", " ", name).strip()
+    return name
+
 norm_map = {}
 for _, row in articles_raw.iterrows():
     for author in row["authors"]:
         name = author.get("name", "").strip()
         if name:
-            norm = (
-                name.lower()
-                .replace(".", "")
-                .replace("-", "")
-                .replace("  ", " ")
-                .strip()
-            )
+            norm = normalize_name(name)
             norm_map[name] = norm
             if norm not in G:
                 G.add_node(norm, display_name=name)

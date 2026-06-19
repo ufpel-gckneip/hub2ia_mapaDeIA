@@ -61,3 +61,18 @@ Análise exploratória, grafos e exportação para visualização interativa.
    - `researchers.json` — dados dos pesquisadores para mapa interativo
 
 **Saída:** `data/output/` — PNGs, GEXF, JSONs.
+
+---
+
+## 05_geocode.py — Georreferenciar Instituições
+
+Mapeia as afiliações institucionais dos pesquisadores para coordenadas geográficas (lat/lng).
+
+1. **Carrega** `data/clean/researchers_with_topics.parquet`
+2. **Extrai** todas as afiliações únicas (1314 no total)
+3. **Consulta dicionário estático** de ~500 instituições brasileiras e internacionais conhecidas
+4. **Fuzzy matching** para nomes completos (ex: "Universidade Federal de Minas Gerais" → UFMG)
+5. **Fallback opcional** para Nominatim (OpenStreetMap) se a afiliação não for encontrada no dicionário
+6. **Salva** `data/output/institutions_geo.json` (cache de coordenadas) e `data/output/researchers_geo.json` (pesquisadores com localização + tópico)
+
+**Saída:** `data/output/researchers_geo.json` — ~8293 pesquisadores geolocalizados (93% do total).
