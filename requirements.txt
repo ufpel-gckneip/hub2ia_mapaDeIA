@@ -19,6 +19,7 @@ networkx>=3.1
 matplotlib>=3.7
 plotly>=5.15
 wordcloud>=1.9
+pyvis>=0.3.2
 
 # map (05_geocode & streamlit)
 folium>=0.16
