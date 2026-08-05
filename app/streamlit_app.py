@@ -12,6 +12,7 @@ import math
 import folium
 from folium.plugins import MarkerCluster
 from collections import defaultdict, Counter
+import requests
 
 st.set_page_config(
     page_title="Mapa de IA — Pesquisadores Brasileiros",
@@ -20,6 +21,43 @@ st.set_page_config(
 )
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+
+DATA_RELEASE_URL = "https://github.com/ufpel-gckneip/hub2ia_mapaDeIA/releases/download/data-v1"
+REQUIRED_DATA_FILES = [
+    "raw/sbc_articles.parquet",
+    "clean/researchers_with_topics.parquet",
+    "output/coauthorship.json",
+    "output/researchers_geo.json",
+    "brazil_states.geojson",
+]
+
+
+@st.cache_resource
+def ensure_data_files():
+    session = requests.Session()
+    session.headers.update({"User-Agent": "mapa-de-ia-streamlit-app"})
+    for rel_path in REQUIRED_DATA_FILES:
+        dest = DATA_DIR / rel_path
+        if dest.exists():
+            continue
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        url = f"{DATA_RELEASE_URL}/{Path(rel_path).name}"
+        last_error = None
+        for attempt in range(3):
+            try:
+                response = session.get(url, timeout=120)
+                response.raise_for_status()
+                dest.write_bytes(response.content)
+                break
+            except requests.RequestException as exc:
+                last_error = exc
+        else:
+            raise RuntimeError(
+                f"Falha ao baixar {url} após 3 tentativas: {last_error}"
+            ) from last_error
+
+
+ensure_data_files()
 
 
 STATE_ABBR_TO_NAME = {
