@@ -1,4 +1,5 @@
 """fastapi-users wiring: user DB adapter, manager, JWT auth backend."""
+
 import uuid
 from collections.abc import AsyncGenerator
 

@@ -24,10 +24,36 @@
 </div>
 
 <style>
-	.list { display: flex; flex-direction: column; gap: 4px; max-width: 800px; }
-	.row { display: grid; grid-template-columns: 220px 1fr 50px; align-items: center; gap: 8px; font-size: 13px; }
-	.name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-	.bar { background: #eee; border-radius: 4px; height: 16px; }
-	.fill { background: #4a90d9; height: 100%; border-radius: 4px; }
-	.n { text-align: right; color: #555; }
+	.list {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		max-width: 800px;
+	}
+	.row {
+		display: grid;
+		grid-template-columns: 220px 1fr 50px;
+		align-items: center;
+		gap: 8px;
+		font-size: 13px;
+	}
+	.name {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.bar {
+		background: #eee;
+		border-radius: 4px;
+		height: 16px;
+	}
+	.fill {
+		background: #4a90d9;
+		height: 100%;
+		border-radius: 4px;
+	}
+	.n {
+		text-align: right;
+		color: #555;
+	}
 </style>

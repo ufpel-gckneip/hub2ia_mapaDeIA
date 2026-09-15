@@ -9,6 +9,7 @@ Point the harness at any Postgres via `TEST_DATABASE_URL` (defaults to a local
 `mapadeia_test` on the compose dev DB). Bring one up with `make dev-db` or
 `docker compose up -d db`, then run `pytest` from `backend/`.
 """
+
 import os
 import sys
 from pathlib import Path
@@ -28,13 +29,14 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key-not-for-production-01234567
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_DIR))  # so `import app` works regardless of cwd
 
-import psycopg  # noqa: E402
-import pytest  # noqa: E402
-import pytest_asyncio  # noqa: E402
-from alembic import command  # noqa: E402
-from alembic.config import Config  # noqa: E402
-from httpx import ASGITransport, AsyncClient  # noqa: E402
-from sqlalchemy.engine import make_url  # noqa: E402
+import psycopg
+import pytest
+import pytest_asyncio
+from alembic.config import Config
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.engine import make_url
+
+from alembic import command
 
 
 def _admin_dsn(url) -> str:

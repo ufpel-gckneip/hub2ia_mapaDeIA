@@ -143,7 +143,8 @@
 		<span class="muted">
 			{#if loading}carregando…{:else}
 				{stats.nodes} nós · {stats.edges} arestas
-				{#if $filters.search}· <strong>{searchCount}</strong> para “{$filters.search}”{:else}· clique num nó para detalhes{/if}
+				{#if $filters.search}· <strong>{searchCount}</strong> para “{$filters.search}”{:else}·
+					clique num nó para detalhes{/if}
 			{/if}
 		</span>
 	</div>
@@ -154,7 +155,9 @@
 	<div class="drawer">
 		<button class="close" on:click={() => (detail = null)}>✕</button>
 		<h3>{detail.display_name}</h3>
-		<p class="muted">{detail.n_articles} artigos · {detail.first_year}–{detail.last_year} · {detail.topic_name}</p>
+		<p class="muted">
+			{detail.n_articles} artigos · {detail.first_year}–{detail.last_year} · {detail.topic_name}
+		</p>
 		{#if $user}
 			<button class="fav" on:click={() => favorite(detail.researcher_id)}>☆ Favoritar</button>
 		{/if}
@@ -171,17 +174,65 @@
 {/if}
 
 <style>
-	.wrap { height: 100%; display: flex; flex-direction: column; }
-	.bar { display: flex; gap: 20px; align-items: center; padding-bottom: 8px; }
-	label { font-size: 13px; display: flex; gap: 8px; align-items: center; }
-	.muted { color: #888; font-size: 13px; margin-left: auto; }
-	.graph { flex: 1; min-height: 400px; border: 1px solid #e5e5e5; border-radius: 8px; background: #fff; }
-	.drawer {
-		position: fixed; top: 0; right: 0; width: min(480px, 90vw); height: 100vh;
-		background: #fff; box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15); padding: 20px;
-		overflow-y: auto; z-index: 1000;
+	.wrap {
+		height: 100%;
+		display: flex;
+		flex-direction: column;
 	}
-	.close { position: absolute; top: 12px; right: 12px; border: none; background: none; font-size: 18px; cursor: pointer; }
-	.fav { border: 1px solid #ccc; background: #fff; border-radius: 4px; padding: 3px 10px; cursor: pointer; margin-bottom: 8px; }
-	.drawer .muted { margin-left: 0; }
+	.bar {
+		display: flex;
+		gap: 20px;
+		align-items: center;
+		padding-bottom: 8px;
+	}
+	label {
+		font-size: 13px;
+		display: flex;
+		gap: 8px;
+		align-items: center;
+	}
+	.muted {
+		color: #888;
+		font-size: 13px;
+		margin-left: auto;
+	}
+	.graph {
+		flex: 1;
+		min-height: 400px;
+		border: 1px solid #e5e5e5;
+		border-radius: 8px;
+		background: #fff;
+	}
+	.drawer {
+		position: fixed;
+		top: 0;
+		right: 0;
+		width: min(480px, 90vw);
+		height: 100vh;
+		background: #fff;
+		box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+		padding: 20px;
+		overflow-y: auto;
+		z-index: 1000;
+	}
+	.close {
+		position: absolute;
+		top: 12px;
+		right: 12px;
+		border: none;
+		background: none;
+		font-size: 18px;
+		cursor: pointer;
+	}
+	.fav {
+		border: 1px solid #ccc;
+		background: #fff;
+		border-radius: 4px;
+		padding: 3px 10px;
+		cursor: pointer;
+		margin-bottom: 8px;
+	}
+	.drawer .muted {
+		margin-left: 0;
+	}
 </style>

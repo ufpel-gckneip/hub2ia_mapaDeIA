@@ -31,9 +31,7 @@
 
 	function toggleTopic(id) {
 		filters.update((f) => {
-			const topics = f.topics.includes(id)
-				? f.topics.filter((x) => x !== id)
-				: [...f.topics, id];
+			const topics = f.topics.includes(id) ? f.topics.filter((x) => x !== id) : [...f.topics, id];
 			return { ...f, topics };
 		});
 	}
@@ -96,9 +94,7 @@
 
 {#if showConsent}
 	<div class="consent">
-		<span>
-			Usamos cookies de sessão para análise de uso (anônima). Você concorda? (LGPD)
-		</span>
+		<span> Usamos cookies de sessão para análise de uso (anônima). Você concorda? (LGPD) </span>
 		<div>
 			<button on:click={() => answerConsent(true)}>Aceitar</button>
 			<button class="ghost" on:click={() => answerConsent(false)}>Recusar</button>

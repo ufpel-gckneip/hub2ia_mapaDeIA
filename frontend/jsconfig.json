@@ -1,0 +1,20 @@
+{
+	// Extends the tsconfig SvelteKit generates on `svelte-kit sync` (run by the
+	// `check` script). This is a plain-JavaScript project with no type
+	// annotations, so we DON'T enable full JS type-checking (`checkJs`/`strict`)
+	// — that would flag every un-annotated parameter as an implicit-any error.
+	// svelte-check still validates Svelte templates, bindings, a11y, and unused
+	// CSS, which is the value we want here. Adopting real typing (JSDoc/TS) can
+	// be a later, dedicated effort.
+	"extends": "./.svelte-kit/tsconfig.json",
+	"compilerOptions": {
+		"allowJs": true,
+		"checkJs": false,
+		"strict": false,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"moduleResolution": "bundler"
+	}
+}

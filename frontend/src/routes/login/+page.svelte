@@ -46,10 +46,33 @@
 </div>
 
 <style>
-	.card { max-width: 360px; margin: 40px auto; padding: 24px; border: 1px solid #e5e5e5; border-radius: 8px; }
-	form { display: flex; flex-direction: column; gap: 10px; }
-	input { padding: 8px; }
-	button { padding: 8px; cursor: pointer; }
-	.link { background: none; border: none; color: #4a90d9; margin-top: 12px; }
-	.error { color: #c0392b; font-size: 13px; }
+	.card {
+		max-width: 360px;
+		margin: 40px auto;
+		padding: 24px;
+		border: 1px solid #e5e5e5;
+		border-radius: 8px;
+	}
+	form {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+	input {
+		padding: 8px;
+	}
+	button {
+		padding: 8px;
+		cursor: pointer;
+	}
+	.link {
+		background: none;
+		border: none;
+		color: #4a90d9;
+		margin-top: 12px;
+	}
+	.error {
+		color: #c0392b;
+		font-size: 13px;
+	}
 </style>

@@ -2,6 +2,7 @@
 meta.data_version. Good enough for a single-process research deployment; swap
 for Redis if you scale to multiple workers.
 """
+
 import time
 from collections.abc import Awaitable, Callable
 from typing import Any

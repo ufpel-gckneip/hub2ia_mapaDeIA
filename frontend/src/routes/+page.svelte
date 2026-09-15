@@ -28,7 +28,6 @@
 	let showArcs = true;
 	let arcLevel = 'state';
 	let arcMinWeight = 1;
-	const ARC_LABEL = { state: 'estados', institution: 'universidades', author: 'autores' };
 	const ARC_LIMIT = { state: 150, institution: 300, author: 500 };
 
 	const STYLE = 'https://tiles.openfreemap.org/styles/positron';
@@ -102,7 +101,11 @@
 	}
 
 	async function loadArcs(level, minWeight) {
-		const data = await apiGet('/map/arcs', { level, min_weight: minWeight, limit: ARC_LIMIT[level] ?? 200 });
+		const data = await apiGet('/map/arcs', {
+			level,
+			min_weight: minWeight,
+			limit: ARC_LIMIT[level] ?? 200
+		});
 		arcs = data.arcs;
 		updateLayers();
 	}
@@ -182,10 +185,16 @@
 			layers,
 			getTooltip: ({ object }) => {
 				if (!object) return null;
-				if (object.display_name) return { text: `${object.display_name}\n${object.n_articles} artigos\n(clique para detalhes)` };
+				if (object.display_name)
+					return {
+						text: `${object.display_name}\n${object.n_articles} artigos\n(clique para detalhes)`
+					};
 				if (object.n_researchers != null)
-					return { text: `${object.name}\n${object.n_researchers} pesquisadores · ${object.n_articles} artigos\n(clique para expandir)` };
-				if (object.label1) return { text: `${object.label1} ↔ ${object.label2}\n${object.weight} coautorias` };
+					return {
+						text: `${object.name}\n${object.n_researchers} pesquisadores · ${object.n_articles} artigos\n(clique para expandir)`
+					};
+				if (object.label1)
+					return { text: `${object.label1} ↔ ${object.label2}\n${object.weight} coautorias` };
 				return null;
 			}
 		});
@@ -217,7 +226,15 @@
 				type: 'fill',
 				source: 'states',
 				paint: {
-					'fill-color': ['interpolate', ['linear'], ['get', 'count'], 0, '#f0f0f0', maxCount, '#08519c'],
+					'fill-color': [
+						'interpolate',
+						['linear'],
+						['get', 'count'],
+						0,
+						'#f0f0f0',
+						maxCount,
+						'#08519c'
+					],
 					'fill-opacity': 0.4,
 					'fill-outline-color': '#888'
 				}
@@ -283,10 +300,14 @@
 	<div class="statusline">
 		{#if viewMode === 'authors' && selected}
 			<button class="back" on:click={backToOverview}>← Voltar</button>
-			<span><strong>{selected.name}</strong> — {authorPoints.length} autores · {selected.city ?? ''} {selected.state ?? ''}</span>
+			<span
+				><strong>{selected.name}</strong> — {authorPoints.length} autores · {selected.city ?? ''}
+				{selected.state ?? ''}</span
+			>
 		{:else}
 			<span class="muted">
-				{loading ? 'carregando…' : `${institutions.length} universidades`} • tamanho = nº de pesquisadores • clique para expandir os autores
+				{loading ? 'carregando…' : `${institutions.length} universidades`} • tamanho = nº de pesquisadores
+				• clique para expandir os autores
 			</span>
 		{/if}
 	</div>
@@ -298,7 +319,9 @@
 	<div class="drawer">
 		<button class="close" on:click={() => (detail = null)}>✕</button>
 		<h3>{detail.display_name}</h3>
-		<p class="muted">{detail.n_articles} artigos · {detail.first_year}–{detail.last_year} · {detail.topic_name}</p>
+		<p class="muted">
+			{detail.n_articles} artigos · {detail.first_year}–{detail.last_year} · {detail.topic_name}
+		</p>
 		{#if $user}
 			<button class="fav" on:click={() => favorite(detail.researcher_id)}>☆ Favoritar</button>
 		{/if}
@@ -315,21 +338,86 @@
 {/if}
 
 <style>
-	.wrap { height: 100%; display: flex; flex-direction: column; }
-	.bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-	.controls { display: flex; align-items: center; gap: 12px; font-size: 13px; }
-	.ctl { display: flex; align-items: center; gap: 6px; }
-	.controls select { padding: 3px 6px; }
-	.controls input[type='range'] { width: 90px; }
-	.statusline { padding: 4px 0 8px; display: flex; align-items: center; gap: 10px; font-size: 13px; }
-	.muted { color: #888; }
-	.back { border: 1px solid #4a90d9; color: #4a90d9; background: #fff; border-radius: 6px; padding: 3px 10px; cursor: pointer; }
-	.map { flex: 1; min-height: 400px; border-radius: 8px; overflow: hidden; }
-	.drawer {
-		position: fixed; top: 0; right: 0; width: min(480px, 90vw); height: 100vh;
-		background: #fff; box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15); padding: 20px;
-		overflow-y: auto; z-index: 1000;
+	.wrap {
+		height: 100%;
+		display: flex;
+		flex-direction: column;
 	}
-	.close { position: absolute; top: 12px; right: 12px; border: none; background: none; font-size: 18px; cursor: pointer; }
-	.fav { border: 1px solid #ccc; background: #fff; border-radius: 4px; padding: 3px 10px; cursor: pointer; margin-bottom: 8px; }
+	.bar {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 12px;
+		flex-wrap: wrap;
+	}
+	.controls {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		font-size: 13px;
+	}
+	.ctl {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+	.controls select {
+		padding: 3px 6px;
+	}
+	.controls input[type='range'] {
+		width: 90px;
+	}
+	.statusline {
+		padding: 4px 0 8px;
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		font-size: 13px;
+	}
+	.muted {
+		color: #888;
+	}
+	.back {
+		border: 1px solid #4a90d9;
+		color: #4a90d9;
+		background: #fff;
+		border-radius: 6px;
+		padding: 3px 10px;
+		cursor: pointer;
+	}
+	.map {
+		flex: 1;
+		min-height: 400px;
+		border-radius: 8px;
+		overflow: hidden;
+	}
+	.drawer {
+		position: fixed;
+		top: 0;
+		right: 0;
+		width: min(480px, 90vw);
+		height: 100vh;
+		background: #fff;
+		box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+		padding: 20px;
+		overflow-y: auto;
+		z-index: 1000;
+	}
+	.close {
+		position: absolute;
+		top: 12px;
+		right: 12px;
+		border: none;
+		background: none;
+		font-size: 18px;
+		cursor: pointer;
+	}
+	.fav {
+		border: 1px solid #ccc;
+		background: #fff;
+		border-radius: 4px;
+		padding: 3px 10px;
+		cursor: pointer;
+		margin-bottom: 8px;
+	}
 </style>

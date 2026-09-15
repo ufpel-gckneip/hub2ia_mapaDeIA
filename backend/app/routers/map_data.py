@@ -1,6 +1,7 @@
 """Map endpoints: geo points (deck.gl ScatterplotLayer) and state aggregates
 (choropleth + inter-state ArcLayer). Ports streamlit_app.py:167-183, 306-320.
 """
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -81,8 +82,11 @@ async def arcs(
         raise HTTPException(400, "invalid level")
 
     async def produce():
-        rows = (await session.execute(
-            text(sql), {"min_weight": min_weight, "limit": limit})).mappings().all()
+        rows = (
+            (await session.execute(text(sql), {"min_weight": min_weight, "limit": limit}))
+            .mappings()
+            .all()
+        )
         return {"level": level, "arcs": [dict(r) for r in rows]}
 
     return await cache.cached(f"arcs:{level}:{min_weight}:{limit}", session, produce)
@@ -112,12 +116,21 @@ async def map_researchers(
             params.update(mnx=mnx, mny=mny, mxx=mxx, mxy=mxy)
         except ValueError:
             pass
-    rows = (await session.execute(text(f"""
+    rows = (
+        (
+            await session.execute(
+                text(f"""
         SELECT r.researcher_id, r.display_name, r.n_articles, r.topic_id,
                ST_X(r.geom) AS lng, ST_Y(r.geom) AS lat
         FROM researchers r WHERE {" AND ".join(where)}
         ORDER BY r.n_articles DESC LIMIT :limit
-    """), params)).mappings().all()
+    """),
+                params,
+            )
+        )
+        .mappings()
+        .all()
+    )
     return {"points": [dict(r) for r in rows]}
 
 
@@ -145,7 +158,10 @@ async def map_institutions(
     variants), sized by researcher count. This is the default map layer — avoids
     stacking every author on the same campus point."""
     where, params = _researcher_filter(topic_id, min_articles, q)
-    rows = (await session.execute(text(f"""
+    rows = (
+        (
+            await session.execute(
+                text(f"""
         SELECT coalesce(i.full_name, i.affiliation_key) AS name,
                max(i.city) AS city, max(i.state) AS state,
                avg(ST_X(i.geom)) AS lng, avg(ST_Y(i.geom)) AS lat,
@@ -157,7 +173,13 @@ async def map_institutions(
         WHERE {" AND ".join(where)}
         GROUP BY coalesce(i.full_name, i.affiliation_key)
         ORDER BY n_researchers DESC
-    """), params)).mappings().all()
+    """),
+                params,
+            )
+        )
+        .mappings()
+        .all()
+    )
     return {"institutions": [dict(r) for r in rows]}
 
 
@@ -174,29 +196,49 @@ async def map_institution_authors(
     where, params = _researcher_filter(topic_id, min_articles, q)
     where.append("coalesce(i.full_name, i.affiliation_key) = :name")
     params["name"] = name
-    rows = (await session.execute(text(f"""
+    rows = (
+        (
+            await session.execute(
+                text(f"""
         SELECT r.researcher_id, r.display_name, r.n_articles, r.topic_id
         FROM researcher_institutions ri
         JOIN institutions i ON i.institution_id = ri.institution_id
         JOIN researchers r ON r.researcher_id = ri.researcher_id
         WHERE {" AND ".join(where)}
         ORDER BY r.n_articles DESC
-    """), params)).mappings().all()
+    """),
+                params,
+            )
+        )
+        .mappings()
+        .all()
+    )
     return {"name": name, "authors": [dict(r) for r in rows]}
 
 
 @router.get("/state-aggregates")
 async def state_aggregates(session: AsyncSession = Depends(get_async_session)):
     async def produce():
-        states = (await session.execute(text("""
+        states = (
+            (
+                await session.execute(
+                    text("""
             SELECT r.state,
                    count(*) AS researchers,
                    sum(r.n_articles) AS articles
             FROM researchers r WHERE r.state IS NOT NULL
             GROUP BY r.state
-        """))).mappings().all()
+        """)
+                )
+            )
+            .mappings()
+            .all()
+        )
 
-        top_topics = (await session.execute(text("""
+        top_topics = (
+            (
+                await session.execute(
+                    text("""
             SELECT state, topic_name, n FROM (
               SELECT r.state, t.topic_name, count(*) AS n,
                      row_number() OVER (PARTITION BY r.state ORDER BY count(*) DESC) AS rk
@@ -204,9 +246,17 @@ async def state_aggregates(session: AsyncSession = Depends(get_async_session)):
               WHERE r.state IS NOT NULL AND NOT t.is_noise
               GROUP BY r.state, t.topic_name
             ) s WHERE rk <= 5
-        """))).mappings().all()
+        """)
+                )
+            )
+            .mappings()
+            .all()
+        )
 
-        edges = (await session.execute(text("""
+        edges = (
+            (
+                await session.execute(
+                    text("""
             SELECT least(rs.state, rd.state) AS s1, greatest(rs.state, rd.state) AS s2,
                    sum(e.weight) AS weight
             FROM coauthorship_edges e
@@ -214,16 +264,23 @@ async def state_aggregates(session: AsyncSession = Depends(get_async_session)):
             JOIN researchers rd ON rd.researcher_id = e.dst_id
             WHERE rs.state IS NOT NULL AND rd.state IS NOT NULL AND rs.state <> rd.state
             GROUP BY 1, 2 ORDER BY weight DESC LIMIT 100
-        """))).mappings().all()
+        """)
+                )
+            )
+            .mappings()
+            .all()
+        )
 
         topics_by_state: dict[str, list] = {}
         for t in top_topics:
             topics_by_state.setdefault(t["state"], []).append(
-                {"topic": t["topic_name"], "count": t["n"]})
+                {"topic": t["topic_name"], "count": t["n"]}
+            )
 
         return {
-            "states": [{**dict(s), "top_topics": topics_by_state.get(s["state"], [])}
-                       for s in states],
+            "states": [
+                {**dict(s), "top_topics": topics_by_state.get(s["state"], [])} for s in states
+            ],
             "edges": [dict(e) for e in edges],
         }
 

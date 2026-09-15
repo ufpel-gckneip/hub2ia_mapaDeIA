@@ -3,3 +3,34 @@
 asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "-ra"
+
+# ── Ruff: linter + formatter for the backend ──
+# Run: `ruff check .` (lint) / `ruff check . --fix` / `ruff format .`
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+# Alembic-generated migration bodies are machine-written; don't lint their style.
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+# E/W pycodestyle · F pyflakes · I import-sort · UP pyupgrade · B bugbear.
+select = ["E", "W", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency-injection idiom: `param = Depends(...)` / `Query(...)` in
+# defaults is intentional, so B008 (function-call-in-default) doesn't apply.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.Header",
+    "fastapi.Cookie",
+    "fastapi.Form",
+    "fastapi.File",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# conftest sets DATABASE_URL/SECRET_KEY before importing `app`, so its imports
+# are deliberately not at the top of the file (E402).
+"tests/conftest.py" = ["E402"]

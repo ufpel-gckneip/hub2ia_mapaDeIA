@@ -34,7 +34,7 @@
 	}
 
 	// Reload when filters change.
-	$: $filters, load();
+	$: ($filters, load());
 </script>
 
 <h2>Pesquisadores <span class="muted">({data.total})</span></h2>
@@ -49,14 +49,20 @@
 		<tbody>
 			{#each data.items as r}
 				<tr>
-					<td><button class="link" on:click={() => openDetail(r.researcher_id)}>{r.display_name}</button></td>
+					<td
+						><button class="link" on:click={() => openDetail(r.researcher_id)}
+							>{r.display_name}</button
+						></td
+					>
 					<td>{r.n_articles}</td>
 					<td>{r.first_year}–{r.last_year}</td>
 					<td>{r.topic_name}</td>
 					<td>{r.state ?? '—'}</td>
 					<td>
 						{#if $user}
-							<button class="link" title="Favoritar" on:click={() => favorite(r.researcher_id)}>☆</button>
+							<button class="link" title="Favoritar" on:click={() => favorite(r.researcher_id)}
+								>☆</button
+							>
 						{/if}
 					</td>
 				</tr>
@@ -65,9 +71,21 @@
 	</table>
 
 	<div class="pager">
-		<button disabled={offset === 0} on:click={() => { offset -= limit; load(false); }}>‹ Anterior</button>
+		<button
+			disabled={offset === 0}
+			on:click={() => {
+				offset -= limit;
+				load(false);
+			}}>‹ Anterior</button
+		>
 		<span class="muted">{offset + 1}–{Math.min(offset + limit, data.total)}</span>
-		<button disabled={offset + limit >= data.total} on:click={() => { offset += limit; load(false); }}>Próximo ›</button>
+		<button
+			disabled={offset + limit >= data.total}
+			on:click={() => {
+				offset += limit;
+				load(false);
+			}}>Próximo ›</button
+		>
 	</div>
 {/if}
 
@@ -75,7 +93,9 @@
 	<div class="drawer">
 		<button class="close" on:click={() => (detail = null)}>✕</button>
 		<h3>{detail.display_name}</h3>
-		<p class="muted">{detail.n_articles} artigos · {detail.first_year}–{detail.last_year} · {detail.topic_name}</p>
+		<p class="muted">
+			{detail.n_articles} artigos · {detail.first_year}–{detail.last_year} · {detail.topic_name}
+		</p>
 		{#if detail.institutions?.length}
 			<p><strong>Instituições:</strong> {detail.institutions.map((i) => i.full_name).join('; ')}</p>
 		{/if}
@@ -89,15 +109,55 @@
 {/if}
 
 <style>
-	.muted { color: #888; font-weight: normal; font-size: 13px; }
-	table { width: 100%; border-collapse: collapse; font-size: 14px; }
-	th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eee; }
-	.link { background: none; border: none; color: #4a90d9; cursor: pointer; padding: 0; text-align: left; }
-	.pager { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
-	.drawer {
-		position: fixed; top: 0; right: 0; width: min(480px, 90vw); height: 100vh;
-		background: #fff; box-shadow: -4px 0 20px rgba(0,0,0,0.15); padding: 20px;
-		overflow-y: auto; z-index: 50;
+	.muted {
+		color: #888;
+		font-weight: normal;
+		font-size: 13px;
 	}
-	.close { position: absolute; top: 12px; right: 12px; border: none; background: none; font-size: 18px; cursor: pointer; }
+	table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 14px;
+	}
+	th,
+	td {
+		text-align: left;
+		padding: 6px 8px;
+		border-bottom: 1px solid #eee;
+	}
+	.link {
+		background: none;
+		border: none;
+		color: #4a90d9;
+		cursor: pointer;
+		padding: 0;
+		text-align: left;
+	}
+	.pager {
+		display: flex;
+		gap: 12px;
+		align-items: center;
+		margin-top: 12px;
+	}
+	.drawer {
+		position: fixed;
+		top: 0;
+		right: 0;
+		width: min(480px, 90vw);
+		height: 100vh;
+		background: #fff;
+		box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+		padding: 20px;
+		overflow-y: auto;
+		z-index: 50;
+	}
+	.close {
+		position: absolute;
+		top: 12px;
+		right: 12px;
+		border: none;
+		background: none;
+		font-size: 18px;
+		cursor: pointer;
+	}
 </style>

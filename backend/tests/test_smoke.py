@@ -4,6 +4,7 @@ These exercise the wiring (routing, auth backend, DB session, migrations) rather
 than business logic. They run against an empty-but-migrated database, so read
 endpoints are asserted on shape, not on seeded rows.
 """
+
 import pytest
 
 

@@ -36,7 +36,7 @@ export async function apiGet(path, params = {}) {
 	return res.json();
 }
 
-export async function apiSend(method, path, body, { auth = false } = {}) {
+export async function apiSend(method, path, body) {
 	const base = path.startsWith('/auth') || path.startsWith('/users') ? '' : '/api';
 	const res = await fetch(`${base}${path}`, {
 		method,
