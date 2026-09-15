@@ -11,8 +11,18 @@ DB_URL = postgresql+psycopg://mapadeia:mapadeia@localhost:5432/mapadeia
 # Create the venv once if you don't have it:  python -m venv .venv
 PYTHON ?= $(CURDIR)/.venv/bin/python
 
+# Frontend tooling runs inside a Node container (same major as CI), so you don't
+# need npm/node installed locally — only Docker. Runs as your host UID/GID so
+# files it writes (node_modules, package-lock.json) aren't owned by root, and
+# points npm's cache at a writable dir since the container user has no HOME.
+FE_IMAGE = node:20-slim
+FE_RUN = docker run --rm -u $$(id -u):$$(id -g) \
+	-e npm_config_cache=/tmp/.npm -e HOME=/tmp \
+	-v $(CURDIR)/frontend:/app -w /app $(FE_IMAGE)
+
 .PHONY: help up load states down clean logs psql superuser \
-        dev-db dev-backend dev-load dev-frontend test
+        dev-db dev-backend dev-load dev-frontend test \
+        fe-install fe-lint fe-check fe-format fe-build fe-verify
 
 help:
 	@echo "Docker (full stack on http://localhost):"
@@ -31,6 +41,11 @@ help:
 	@echo ""
 	@echo "Tests:"
 	@echo "  make test          run backend tests (needs dev-db running)"
+	@echo ""
+	@echo "Frontend lint/format (runs in a Node container — only needs Docker):"
+	@echo "  make fe-verify     install + format + lint + check + build (one shot)"
+	@echo "  make fe-lint       eslint    · make fe-check  svelte-check"
+	@echo "  make fe-format     prettier  · make fe-build  production build"
 
 # ── Docker full stack ──
 states:
@@ -88,3 +103,24 @@ test: dev-db
 		|| { echo "ERROR: '$(PYTHON)' has no pip. Use a venv or pyenv Python:"; \
 		     echo "  make test PYTHON=\$$(pyenv which python)"; exit 1; }
 	cd backend && $(PYTHON) -m pip install -q -r requirements-dev.txt && $(PYTHON) -m pytest
+
+# ── Frontend lint/format (Dockerized Node; no local npm needed) ──
+# `fe-install` populates frontend/node_modules on the host mount, so the other
+# targets reuse it. `fe-verify` does everything in one container for convenience.
+fe-install:
+	$(FE_RUN) npm install
+
+fe-lint:
+	$(FE_RUN) npm run lint
+
+fe-check:
+	$(FE_RUN) npm run check
+
+fe-format:
+	$(FE_RUN) npm run format
+
+fe-build:
+	$(FE_RUN) npm run build
+
+fe-verify:
+	$(FE_RUN) sh -c "npm install && npm run format && npm run lint && npm run check && npm run build"

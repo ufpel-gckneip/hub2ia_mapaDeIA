@@ -195,4 +195,6 @@ GitHub Actions runs on **pull requests targeting `main`** and on **pushes to
 **eslint** (flat config, `frontend/eslint.config.js`) + **prettier**
 (`.prettierrc`) + **svelte-check** (`jsconfig.json`); scripts: `npm run lint`,
 `npm run format`, `npm run check`. A committed `frontend/package-lock.json` makes
-installs reproducible (`npm ci`).
+installs reproducible (`npm ci`). If you don't have npm installed locally, run the
+frontend tooling in a container with `make fe-verify` (or `fe-lint`/`fe-check`/
+`fe-format`/`fe-build`) — it uses `node:20-slim`, so only Docker is required.
