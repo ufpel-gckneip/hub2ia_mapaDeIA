@@ -1,0 +1,16 @@
+# Edge: serves the built SPA and reverse-proxies the API to the backend.
+# SITE_ADDRESS controls TLS: use a domain for automatic HTTPS, or :80 in dev.
+{$SITE_ADDRESS::80} {
+	encode gzip zstd
+
+	@api path /api/* /auth/* /users/*
+	handle @api {
+		reverse_proxy backend:8000
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

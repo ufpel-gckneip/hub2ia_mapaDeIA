@@ -1,104 +1,77 @@
 # Mapa de IA
 
-Mapa de pesquisadores brasileiros de Inteligência Artificial, extraindo dados da
-[SBC Online Library](https://sol.sbc.org.br) (BRACIS, ENIAC, SBRC e outros
-eventos) e posteriormente do Lattes.
+Mapa interativo de pesquisadores brasileiros de Inteligência Artificial. Os dados
+são extraídos da [SBC Online Library](https://sol.sbc.org.br) (BRACIS, ENIAC,
+SBRC, SIBGRAPI e outros eventos), consolidados por pesquisador, agrupados por
+tópico via NLP, geolocalizados por instituição e servidos em uma aplicação web.
+
+O projeto tem **duas partes**:
+
+1. **Pipeline de dados** (Python) — crawling → limpeza → tópicos → exploração →
+   geocoding → carga no banco. Roda ocasionalmente e produz artefatos.
+2. **Aplicação web** (Postgres + FastAPI + SvelteKit) — serve os dados de forma
+   interativa: mapa demográfico, grafo de coautoria, tabelas, contas de usuário e
+   analytics.
+
+```
+Pipeline (Python)                         Aplicação web (self-hosted)
+ 01 crawl → 05 geocode ──► data/*  ──►  06_load_db ──► Postgres + PostGIS
+                                                            │
+                                                            ▼
+                                        FastAPI (REST + auth JWT + tracking)
+                                                            │  /api /auth /users
+                                                            ▼
+                                        SvelteKit SPA (Caddy) — MapLibre + deck.gl,
+                                                            Sigma.js
+```
+
+## Como rodar
+
+- **Local (para testar):** veja [`LOCAL.md`](LOCAL.md) — em resumo, com Docker:
+  `make up && make load`, depois abra http://localhost.
+- **Produção (self-hosted):** veja [`DEPLOY.md`](DEPLOY.md).
+- **Detalhes técnicos:** veja [`DOCUMENTATION.md`](DOCUMENTATION.md).
+- **Pipeline de dados:** veja [`docs/pipeline.md`](docs/pipeline.md).
+
+## Funcionalidades da aplicação
+
+- **🗺️ Mapa Demográfico** — um marcador por **universidade** (dimensionado pelo nº
+  de pesquisadores); clicar expande os autores em torno do campus (spider), com
+  linhas até o centro e painel de detalhes por autor. Coropleth por estado e
+  **arcos de coautoria** selecionáveis entre **estados**, **universidades** ou
+  **autores**, com filtro por força mínima.
+- **🕸️ Mapa de Coautoria** — grafo completo (~8,9k nós / ~23k arestas) renderizado
+  com Sigma.js, com corte por grau mínimo.
+- **📋 Pesquisadores / 📄 Artigos** — tabelas filtráveis e busca full-text.
+- **📊 Tópicos / 📈 Estatísticas** — distribuições e KPIs.
+- **Contas + LGPD** — registro/login (JWT), buscas salvas, favoritos, e analytics
+  de uso anônimas com banner de consentimento.
+- **🛠️ Admin** — painel para superusuários (usuários, eventos de analytics).
 
 ## Stack
 
-- Python scripts com células (`# %%`)
-- `requests` + `BeautifulSoup` para crawling
-- `sentence-transformers` para extração semântica de tópicos
-- NetworkX + Plotly para visualização
+| Camada | Tecnologia |
+|--------|-----------|
+| Pipeline | Python, `requests` + BeautifulSoup, `sentence-transformers`, UMAP, HDBSCAN, NetworkX |
+| Banco | PostgreSQL + PostGIS |
+| Backend | FastAPI, SQLAlchemy, Alembic, fastapi-users (JWT) |
+| Frontend | SvelteKit, MapLibre GL + deck.gl (mapa), Sigma.js (grafo) |
+| Deploy | Docker Compose, Caddy (TLS + SPA + proxy) |
 
-## Plano de Execução
-
-### Scripts
-
-| # | Script | Descrição |
-|---|--------|-----------|
-| 1 | `01_crawl_sbc.py` | **Crawlear a SBC Online Library** — percorrer anais de eventos SBC relacionados à IA (BRACIS, ENIAC, KDMile, etc.), extraindo título, autores, resumo, evento e ano via `<meta>` tags do HTML |
-| 2 | `02_clean_data.py` | **Normalizar e deduplicar** — correspondência exata por nome normalizado (lowercase, sem acentos); unificar dados de todos os eventos |
-| 3 | `03_extract_topics.py` | **Extração de tópicos via NLP** — usar `sentence-transformers` (`all-MiniLM-L6-v2`) para embedar títulos + resumos de cada pesquisador, reduzir dimensionalidade com UMAP e clusterizar com HDBSCAN. Gera 168 clusters temáticos (ex: "multi-agent systems", "computer vision", "NLP", "robotics") |
-| 4 | `04_explore.py` | **Exploração dos dados** — estatísticas descritivas, gráficos de distribuição, nuvem de palavras dos títulos, grafo de coautoria (9k nós, 23k arestas), exportação para Gephi (GEXF) e web (JSON) |
-
-### Decisões Tomadas
-
-| Item | Decisão |
-|------|---------|
-| **Escopo inicial** | Apenas SBC Online Library (eventos relacionados à IA). Lattes fica para depois. |
-| **Crawler** | Breadth-first: descobrir edições → listar artigos → extrair metadados de `<meta>` tags no HTML de cada artigo. Sem delay inicial — adicionado apenas se o site retornar 429. |
-| **Eventos-alvo** | BRACIS, KDMile, SBR/LARS, STIL, SIBGRAPI, LAAI-Ethics, ENIAC, BWAIF, WVC, WESAAC, SAFELIFE, WER-IAEdu |
-| **Deduplicação** | Exata por nome normalizado. Fuzzy pode ser adicionado depois para comparação. |
-| **NLP** | `sentence-transformers` com `all-MiniLM-L6-v2` — gratuito, roda em CPU, boa qualidade semântica. |
-| **Saída** | DataFrame + grafo simples por enquanto. Mapa interativo será implementado em etapa futura. |
-
-### Estrutura de Arquivos
+## Estrutura
 
 ```
 MapaDeIA/
-├── README.md
-├── requirements.txt
-├── files/
-│   ├── 01_crawl_sbc.py              # Crawler da SOL
-│   ├── 02_clean_data.py             # Limpeza e deduplicação
-│   ├── 03_extract_topics.py         # NLP e clusterização
-│   └── 04_explore.py                # Análise exploratória
-├── data/
-│   ├── raw/
-│   │   └── sbc_articles.parquet     # 3.596 artigos crus
-│   ├── clean/
-│   │   ├── researchers.parquet      # 8.895 pesquisadores (deduplicados)
-│   │   └── researchers_with_topics.parquet  # + clusters e tópicos
-│   └── output/
-│       ├── overview.png              # Gráficos de distribuição
-│       ├── wordcloud_titles.png      # Nuvem de palavras
-│       ├── coauthorship_graph.png    # Grafo de coautoria
-│       ├── coauthorship.gexf         # Grafo para Gephi
-│       ├── coauthorship.json         # Grafo para web
-│       └── researchers.json          # Pesquisadores para web
+├── files/            # pipeline (01–05) + 06_load_db.py (carga no Postgres)
+├── backend/          # FastAPI: app/ (models, routers, auth) + alembic/
+├── frontend/         # SvelteKit SPA
+├── data/             # artefatos do pipeline (git-ignored)
+├── docs/pipeline.md  # detalhes do pipeline
+├── docker-compose.yml + Makefile
+├── LOCAL.md · DEPLOY.md · DOCUMENTATION.md
 ```
 
-## Crawler — Detalhes Técnicos
+## Dados (medidos)
 
-O script `01_crawl_sbc.py` implementa um crawler breadth-first para a
-[SBC Online Library](https://sol.sbc.org.br) (SOL), que roda sobre
-[Open Journal Systems (OJS)](https://pkp.sfu.ca/ojs/).
-
-### Pipeline
-
-```
-EVENTS (lista fixa de 12 eventos AI)
-  └─ discover_editions()
-       └─ /index.php/{event}/issue/archive → lista de edições/anos
-            └─ discover_articles()
-                 └─ /index.php/{event}/issue/view/{id} → lista de artigos
-                      └─ scrape_article_meta()
-                           └─ /index.php/{event}/article/view/{id}
-                                └─ metadados extraídos de <meta> tags no <head>
-```
-
-### Metadados extraídos
-
-De `<meta>` tags no `<head>` de cada página de artigo:
-
-| Tag | Campo |
-|-----|-------|
-| `citation_title` | Título |
-| `citation_author` + `citation_author_institution` | Autores e afiliações |
-| `citation_date` | Data de publicação (ano) |
-| `citation_conference` | Nome do evento |
-| `citation_firstpage` / `citation_lastpage` | Páginas |
-| `citation_pdf_url` | URL do PDF |
-| `DC.Description` | Resumo (abstract) |
-| `DC.Type.articleType` | Trilha/Seção |
-
-### Saída
-
-`data/raw/sbc_articles.parquet` com colunas:
-`title`, `authors` (lista de {name, affiliation}), `abstract`,
-`event_acronym`, `event_name`, `year`, `track`, `pages`,
-`pdf_url`, `article_url`, `issn`
-
-Checkpoint salvo após cada evento — permite interromper e retomar.
-
+3.597 artigos · 12 eventos · 2007–2025 · 8.898 pesquisadores · 165 tópicos ·
+grafo de 8.898 nós / ~23k arestas · ~93% geolocalizados.

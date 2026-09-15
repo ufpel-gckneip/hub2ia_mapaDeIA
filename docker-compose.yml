@@ -1,0 +1,78 @@
+# Mapa de IA — self-hosted stack: Postgres/PostGIS + FastAPI + Caddy(SPA+proxy).
+# Copy .env.example to .env and edit before `docker compose up -d --build`.
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mapadeia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mapadeia}
+      POSTGRES_DB: ${POSTGRES_DB:-mapadeia}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mapadeia}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-mapadeia}:${POSTGRES_PASSWORD:-mapadeia}@db:5432/${POSTGRES_DB:-mapadeia}
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # Healthy only after `alembic upgrade head` + the server accepts requests,
+      # so the loader can safely wait on this before inserting.
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/health').status==200 else sys.exit(1)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  # One-shot data loader. Run explicitly:
+  #   docker compose run --rm loader
+  # Requires the pipeline artifacts present in ./data (see DEPLOY.md).
+  loader:
+    build:
+      context: .
+      dockerfile: files/loader.Dockerfile
+    profiles: ["load"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-mapadeia}:${POSTGRES_PASSWORD:-mapadeia}@db:5432/${POSTGRES_DB:-mapadeia}
+      ALLOW_DB_RELOAD: "1"
+    volumes:
+      - ./files:/repo/files
+      - ./backend:/repo/backend
+      - ./data:/repo/data
+      - ./logs:/repo/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_healthy  # ensures migrations have run
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

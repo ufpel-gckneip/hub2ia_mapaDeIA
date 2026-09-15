@@ -1,0 +1,21 @@
+# FastAPI backend for Mapa de IA
+fastapi>=0.115
+uvicorn[standard]>=0.30
+gunicorn>=22.0
+
+# DB
+SQLAlchemy>=2.0
+GeoAlchemy2>=0.15
+psycopg[binary]>=3.1
+alembic>=1.13
+
+# Auth
+fastapi-users[sqlalchemy]>=13.0
+
+# Settings / validation
+pydantic>=2.7
+pydantic-settings>=2.3
+
+# Misc
+shapely>=2.0
+python-multipart>=0.0.9

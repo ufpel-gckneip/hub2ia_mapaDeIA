@@ -1,0 +1,26 @@
+{
+  "name": "mapa-de-ia-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^3.0.5",
+    "@sveltejs/kit": "^2.5.0",
+    "@sveltejs/vite-plugin-svelte": "^3.1.0",
+    "svelte": "^4.2.19",
+    "vite": "^5.4.0"
+  },
+  "dependencies": {
+    "@deck.gl/core": "^9.0.0",
+    "@deck.gl/layers": "^9.0.0",
+    "@deck.gl/mapbox": "^9.0.0",
+    "graphology": "^0.25.4",
+    "maplibre-gl": "^4.7.0",
+    "sigma": "^3.0.0"
+  }
+}

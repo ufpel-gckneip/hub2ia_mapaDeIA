@@ -1,0 +1,29 @@
+# Root build context is used ONLY by the loader image (files/loader.Dockerfile),
+# which COPYs nothing — files/, backend/, and data/ are bind-mounted at runtime.
+# Exclude everything heavy so the context stays tiny.
+
+# Virtualenvs (~11 GB combined) — never needed in an image
+.venv/
+env/
+venv/
+
+# VCS, editor, OS
+.git/
+.gitignore
+*.md
+
+# Data + logs (bind-mounted for the loader; huge)
+data/
+logs/
+
+# Python caches
+**/__pycache__/
+*.pyc
+
+# Frontend build artifacts / node deps
+**/node_modules/
+frontend/build/
+frontend/.svelte-kit/
+
+# Secrets
+.env
