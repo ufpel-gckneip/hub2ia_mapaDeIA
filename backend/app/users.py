@@ -56,8 +56,26 @@ async def get_user_manager(
 bearer_transport = BearerTransport(tokenUrl="auth/jwt/login")
 
 
+# Refresh tokens carry a distinct audience so an access token can't be used to
+# refresh and a refresh token can't be presented as a bearer access token.
+REFRESH_TOKEN_AUDIENCE = "mapadeia:refresh"
+
+
 def get_jwt_strategy() -> JWTStrategy:
-    return JWTStrategy(secret=settings.secret_key, lifetime_seconds=settings.jwt_lifetime_seconds)
+    """Strategy for the short-lived access token (default fastapi-users audience)."""
+    return JWTStrategy(
+        secret=settings.secret_key,
+        lifetime_seconds=settings.access_token_lifetime_seconds,
+    )
+
+
+def get_refresh_strategy() -> JWTStrategy:
+    """Strategy for the longer-lived refresh token (distinct audience)."""
+    return JWTStrategy(
+        secret=settings.secret_key,
+        lifetime_seconds=settings.refresh_token_lifetime_seconds,
+        token_audience=[REFRESH_TOKEN_AUDIENCE],
+    )
 
 
 auth_backend = AuthenticationBackend(

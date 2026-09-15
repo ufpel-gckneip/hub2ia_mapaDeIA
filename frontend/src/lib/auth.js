@@ -1,8 +1,9 @@
-import { apiSend, getToken, setToken } from './api.js';
+import { apiSend, clearTokens, getToken, setTokens } from './api.js';
 import { user } from './stores.js';
 
 export async function login(email, password) {
-	// fastapi-users JWT login expects form-urlencoded (OAuth2 password flow).
+	// Login expects form-urlencoded (OAuth2 password flow); returns an
+	// access + refresh token pair.
 	const body = new URLSearchParams({ username: email, password });
 	const res = await fetch('/auth/jwt/login', {
 		method: 'POST',
@@ -11,7 +12,7 @@ export async function login(email, password) {
 	});
 	if (!res.ok) throw new Error('Credenciais inválidas');
 	const data = await res.json();
-	setToken(data.access_token);
+	setTokens(data);
 	await loadMe();
 }
 
@@ -30,13 +31,13 @@ export async function loadMe() {
 		user.set(me);
 		return me;
 	} catch {
-		setToken(null);
+		clearTokens();
 		user.set(null);
 		return null;
 	}
 }
 
 export function logout() {
-	setToken(null);
+	clearTokens();
 	user.set(null);
 }

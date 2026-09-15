@@ -39,19 +39,21 @@ One branch per item, merged to `main` via PR:
   Removed the insecure default; `Settings.assert_secure_secret_key()` (rejects placeholders +
   `< 32` chars) enforced at API boot in `main.py`; loader unaffected. `tests/test_config.py`.
 
-- [~] **5. Password policy** — `feat/password-policy` _(implemented — verified; awaiting your PR)_
-  `users.py`: `UserManager.validate_password` rejects passwords `< 10` chars or containing the
-  e-mail (raises `InvalidPasswordException` → HTTP 400 on register/reset). Login form adds
-  `minlength=10` (register mode) + a hint.
-  _Done when:_ a weak password is rejected server-side.
-  **Verified here:** short and email-in-password registers → 400; strong → 201. New
-  `tests/test_auth.py` (3 cases); full suite 20 passed; ruff clean. Frontend: run
-  `make fe-verify` to confirm the login-page change lints/builds.
+- [x] **5. Password policy** — `feat/password-policy` — **merged (PR #6)**
+  `UserManager.validate_password` rejects passwords `< 10` chars or containing the e-mail
+  (HTTP 400 on register/reset); login form `minlength=10` + hint. `tests/test_auth.py`.
 
-- [ ] **6. Harden JWT handling** — `feat/jwt-hardening`
-  Move token to an `HttpOnly` cookie **or** add short-lived access + refresh tokens with
-  a documented tradeoff. `api.js`, `users.py`.
-  _Done when:_ cookies are in place, or refresh tokens + a documented decision exist.
+- [~] **6. Harden JWT handling** — `feat/jwt-hardening` _(implemented — backend verified; awaiting your PR)_
+  **Chosen: short-lived access + refresh tokens** (over the HttpOnly-cookie option). Access
+  TTL 15 min, refresh 7 days, **distinct JWT audiences** so neither substitutes for the other.
+  Custom `routers/auth.py` (`/auth/jwt/login` → pair, `/auth/jwt/refresh` → new access);
+  frontend stores both and auto-refreshes on `401` (`api.js`). Tradeoff documented in
+  `DOCUMENTATION.md` §5 (tokens still in `localStorage`; HttpOnly cookie is a possible
+  follow-up).
+  _Done when:_ refresh tokens + a documented decision exist.
+  **Verified here:** login returns a pair; refresh mints a working access token; access≠refresh
+  and cross-use is rejected (401). Full suite 24 passed; ruff clean. Frontend: run
+  `make fe-verify` (api.js/auth.js changed).
 
 ## P1 — Correctness & scale
 
@@ -135,6 +137,8 @@ One branch per item, merged to `main` via PR:
 
 _Newest first. One entry per merged item._
 
+- **2026-09-15** · #5 — Account password policy (`feat/password-policy`, PR #6): reject
+  passwords `< 10` chars or containing the e-mail (HTTP 400); login form `minlength`.
 - **2026-09-15** · #4 — Enforce strong `SECRET_KEY` (`fix/secret-key`, PR #5): removed the
   insecure default; API refuses to boot with an unset/weak/placeholder key; loader unaffected.
 - **2026-09-15** · #3 — Linters/formatters (`chore/linting`, PR #4): ruff (backend) +

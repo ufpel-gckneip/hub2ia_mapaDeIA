@@ -7,6 +7,7 @@ from app.config import settings
 from app.routers import (
     admin,
     articles,
+    auth,
     graph,
     map_data,
     me,
@@ -16,7 +17,7 @@ from app.routers import (
     tracking,
 )
 from app.schemas import UserCreate, UserRead, UserUpdate
-from app.users import auth_backend, fastapi_users
+from app.users import fastapi_users
 
 # Refuse to start the API with an unset/weak signing key (fails the boot and the
 # container healthcheck). The loader path never imports this module, so data
@@ -39,8 +40,9 @@ async def health():
     return {"status": "ok"}
 
 
-# ── Auth routes (fastapi-users) ──
-app.include_router(fastapi_users.get_auth_router(auth_backend), prefix="/auth/jwt", tags=["auth"])
+# ── Auth routes ──
+# Custom login/refresh (access + refresh tokens); the rest from fastapi-users.
+app.include_router(auth.router)
 app.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate), prefix="/auth", tags=["auth"]
 )
