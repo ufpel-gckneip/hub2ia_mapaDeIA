@@ -1,0 +1,7 @@
+# Dev overlay: exposes the Postgres port to the host so you can run the backend
+# and frontend natively (hot reload) against the containerized database.
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
+services:
+  db:
+    ports:
+      - "5432:5432"

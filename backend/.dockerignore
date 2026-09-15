@@ -1,0 +1,5 @@
+# Keep the backend image context clean.
+**/__pycache__/
+*.pyc
+.env
+*.md
