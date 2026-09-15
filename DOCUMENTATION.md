@@ -180,14 +180,19 @@ GitHub Actions runs on **pull requests targeting `main`** and on **pushes to
 `main`**. Two parallel jobs:
 
 - **backend** — spins a `postgis/postgis:16-3.4` *service container*, installs
-  `backend/requirements-dev.txt`, and runs `pytest`. It sets `TEST_DATABASE_URL`
-  to the container and a throwaway `SECRET_KEY`; `conftest.py` creates/drops the
-  `mapadeia_test` database, so CI exercises the real migrations + PostGIS/FTS.
-- **frontend** — `npm install` + `npm run build` (a broken import or Svelte
-  compile error fails the build). The SPA is fully client-side (`ssr=false`), so
-  the build needs neither the API nor the DB.
+  `backend/requirements-dev.txt`, runs **ruff** (`ruff check` + `ruff format
+  --check`), then `pytest`. It sets `TEST_DATABASE_URL` to the container and a
+  throwaway `SECRET_KEY`; `conftest.py` creates/drops the `mapadeia_test`
+  database, so CI exercises the real migrations + PostGIS/FTS.
+- **frontend** — `npm ci`, then **eslint** (`npm run lint`), **svelte-check**
+  (`npm run check`), and `npm run build`. The SPA is fully client-side
+  (`ssr=false`), so none of these need the API or DB.
 
-`concurrency` cancels a superseded run when you push again to the same PR. Lint
-(ruff) and type-check (svelte-check) steps are added in TODO #3 alongside their
-configs and a committed `package-lock.json` (which lets frontend switch to the
-faster, reproducible `npm ci`).
+`concurrency` cancels a superseded run when you push again to the same PR.
+
+**Linters / formatters (TODO #3).** Backend uses **ruff** (config in
+`backend/pyproject.toml`): `ruff check .` / `ruff format .`. Frontend uses
+**eslint** (flat config, `frontend/eslint.config.js`) + **prettier**
+(`.prettierrc`) + **svelte-check** (`jsconfig.json`); scripts: `npm run lint`,
+`npm run format`, `npm run check`. A committed `frontend/package-lock.json` makes
+installs reproducible (`npm ci`).

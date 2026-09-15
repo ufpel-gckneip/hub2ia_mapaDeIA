@@ -7,6 +7,7 @@ The DDL is owned by Alembic migrations; these models are the source of truth
 that `alembic revision --autogenerate` compares against, and that the API and
 loader import.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -30,7 +31,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import CITEXT, JSONB, UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
 
@@ -82,7 +83,9 @@ class Article(Base):
     article_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     title: Mapped[str] = mapped_column(Text, nullable=False)
     abstract: Mapped[str | None] = mapped_column(Text)
-    event_id: Mapped[int] = mapped_column(SmallInteger, ForeignKey("events.event_id"), nullable=False)
+    event_id: Mapped[int] = mapped_column(
+        SmallInteger, ForeignKey("events.event_id"), nullable=False
+    )
     year: Mapped[int] = mapped_column(SmallInteger, nullable=False)
     track: Mapped[str | None] = mapped_column(Text)
     pages: Mapped[str | None] = mapped_column(Text)
@@ -140,8 +143,12 @@ class Researcher(Base):
 class Authorship(Base):
     __tablename__ = "authorships"
 
-    article_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("articles.article_id"), primary_key=True)
-    researcher_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("researchers.researcher_id"), primary_key=True)
+    article_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("articles.article_id"), primary_key=True
+    )
+    researcher_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("researchers.researcher_id"), primary_key=True
+    )
     author_order: Mapped[int | None] = mapped_column(SmallInteger)
     raw_affiliation: Mapped[str | None] = mapped_column(Text)
 
@@ -151,8 +158,12 @@ class Authorship(Base):
 class ResearcherInstitution(Base):
     __tablename__ = "researcher_institutions"
 
-    researcher_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("researchers.researcher_id"), primary_key=True)
-    institution_id: Mapped[int] = mapped_column(Integer, ForeignKey("institutions.institution_id"), primary_key=True)
+    researcher_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("researchers.researcher_id"), primary_key=True
+    )
+    institution_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("institutions.institution_id"), primary_key=True
+    )
     is_primary: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     __table_args__ = (Index("ix_researcher_institutions_institution_id", "institution_id"),)
@@ -161,16 +172,24 @@ class ResearcherInstitution(Base):
 class ResearcherEvent(Base):
     __tablename__ = "researcher_events"
 
-    researcher_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("researchers.researcher_id"), primary_key=True)
-    event_id: Mapped[int] = mapped_column(SmallInteger, ForeignKey("events.event_id"), primary_key=True)
+    researcher_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("researchers.researcher_id"), primary_key=True
+    )
+    event_id: Mapped[int] = mapped_column(
+        SmallInteger, ForeignKey("events.event_id"), primary_key=True
+    )
 
 
 class CoauthorshipEdge(Base):
     __tablename__ = "coauthorship_edges"
 
     # Canonical undirected edge: src_id < dst_id, no self-loops.
-    src_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("researchers.researcher_id"), primary_key=True)
-    dst_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("researchers.researcher_id"), primary_key=True)
+    src_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("researchers.researcher_id"), primary_key=True
+    )
+    dst_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("researchers.researcher_id"), primary_key=True
+    )
     weight: Mapped[int] = mapped_column(Integer, nullable=False)
 
     __table_args__ = (

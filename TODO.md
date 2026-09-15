@@ -24,19 +24,27 @@ One branch per item, merged to `main` via PR:
   app in-process against a throwaway `mapadeia_test` DB with the real migrations.
   `make test` runs it. See `backend/tests/README.md`.
 
-- [~] **2. CI pipeline** — `chore/ci` _(implemented — awaiting your test + PR)_
-  `.github/workflows/ci.yml`: runs on **PRs targeting `main` + pushes to `main`**. Two
-  parallel jobs — **backend** `pytest` against a `postgis` service container, **frontend**
-  `npm install` + `npm run build`. `ruff check` and `svelte-check` are **deferred to #3**
-  (they need configs + a lockfile that #3 introduces).
-  _Done when:_ a PR runs the workflow and blocks on failure.
-  **How to test:** push the branch and open a PR to `main` — the "CI" checks appear on the
-  PR (Actions tab). Both jobs should go green. Locally, `make test` still covers the backend
-  job. Docs: `DOCUMENTATION.md` §9; badge in `README.md`.
+- [x] **2. CI pipeline** — `chore/ci` — **merged (PR #3)**
+  `.github/workflows/ci.yml`: runs on PRs targeting `main` + pushes to `main`. Backend
+  (pytest on a `postgis` service container) + frontend (build) jobs. Badge in `README.md`,
+  docs in `DOCUMENTATION.md` §9.
 
-- [ ] **3. Linters / formatters** — `chore/linting`
-  Backend `ruff` (lint+format) in `pyproject.toml`; frontend `eslint` + `prettier`.
+- [~] **3. Linters / formatters** — `chore/linting` _(implemented — backend verified; frontend needs your `npm install`)_
+  Backend **ruff** (lint+format) config in `backend/pyproject.toml`, wired into CI. Frontend
+  **eslint** (flat config) + **prettier** + **svelte-check**, scripts in `package.json`,
+  wired into CI (`npm ci` → lint → check → build).
   _Done when:_ `ruff check .` and `npm run lint` pass.
+  **Backend — verified here:** `ruff check` clean, `ruff format` stable, 8 tests still green.
+  **Frontend — your step (no npm in my env):**
+  ```
+  cd frontend
+  npm install            # also generates package-lock.json — COMMIT it
+  npm run format         # apply prettier
+  npm run lint           # eslint
+  npm run check          # svelte-check
+  npm run build
+  ```
+  Paste any lint/check errors and I'll fix them; then commit `package-lock.json` before the PR.
 
 - [ ] **4. Enforce `SECRET_KEY`, remove insecure default** — `fix/secret-key`
   `config.py`: drop the `"CHANGE-ME-IN-PRODUCTION"` default; assert a strong key at startup.
@@ -127,6 +135,8 @@ One branch per item, merged to `main` via PR:
 
 _Newest first. One entry per merged item._
 
+- **2026-09-15** · #2 — GitHub Actions CI (`chore/ci`, PR #3): backend (pytest on a
+  `postgis` service container) + frontend (build) jobs on PRs/pushes to `main`; README badge.
 - **2026-09-15** · #1 — Backend test harness + smoke tests (`chore/backend-tests`, PR #2):
   8-test pytest suite (auth, researchers/graph shape, admin authz) against a throwaway
   `mapadeia_test` DB with the real migrations; `make test` runner.

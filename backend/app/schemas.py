@@ -1,4 +1,5 @@
 """Pydantic schemas for requests/responses."""
+
 import uuid
 
 from fastapi_users import schemas

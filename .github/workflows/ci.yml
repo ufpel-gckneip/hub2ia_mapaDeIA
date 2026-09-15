@@ -84,6 +84,12 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-dev.txt
 
+      - name: Lint & format check (ruff)
+        working-directory: backend
+        run: |
+          python -m ruff check .
+          python -m ruff format --check .
+
       - name: Run tests
         working-directory: backend
         run: python -m pytest
@@ -101,13 +107,23 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          # Cache npm downloads keyed on the committed lockfile.
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
-      # No package-lock.json is committed yet, so `npm install` (not `npm ci`).
-      # TODO #3 will add a lockfile (installing eslint updates it) and switch this
-      # to `npm ci` + dependency caching for reproducible, faster builds.
+      # `npm ci` is the reproducible install: it requires a committed
+      # package-lock.json and installs exactly those versions.
       - name: Install dependencies
         working-directory: frontend
-        run: npm install --no-audit --no-fund
+        run: npm ci
+
+      - name: Lint (eslint)
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Type-check (svelte-check)
+        working-directory: frontend
+        run: npm run check
 
       - name: Build
         working-directory: frontend

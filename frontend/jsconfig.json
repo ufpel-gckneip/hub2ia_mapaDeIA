@@ -1,0 +1,16 @@
+{
+	// Extends the tsconfig SvelteKit generates on `svelte-kit sync` (run by the
+	// `check` script). Enables JS type-checking via svelte-check.
+	"extends": "./.svelte-kit/tsconfig.json",
+	"compilerOptions": {
+		"allowJs": true,
+		"checkJs": true,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"sourceMap": true,
+		"strict": true,
+		"moduleResolution": "bundler"
+	}
+}
