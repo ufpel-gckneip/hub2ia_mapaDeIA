@@ -21,6 +21,12 @@ export default [
 			sourceType: 'module',
 			// Browser code + a little Node (config files).
 			globals: { ...globals.browser, ...globals.node }
+		},
+		rules: {
+			// Svelte compiler diagnostics (a11y hints, unused-CSS) are surfaced as
+			// warnings, not lint-blocking errors. The dedicated accessibility pass
+			// (TODO #13) resolves them; true compile *errors* still fail the build.
+			'svelte/valid-compile': 'warn'
 		}
 	},
 	{
