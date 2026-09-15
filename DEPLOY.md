@@ -27,11 +27,15 @@ and **Caddy** (serves the SvelteKit SPA and reverse-proxies the API). A one-shot
 ```bash
 cp .env.example .env
 # Edit .env:
-#   SECRET_KEY   → openssl rand -hex 32
+#   SECRET_KEY   → openssl rand -hex 32   (REQUIRED — see note below)
 #   SITE_ADDRESS → your domain (auto-HTTPS) or ":80" for local HTTP
 #   CORS_ORIGINS → https://your-domain  (or http://localhost)
 #   POSTGRES_PASSWORD → a strong value
 ```
+
+> **SECRET_KEY is mandatory.** The API refuses to start (and its healthcheck
+> never passes) if `SECRET_KEY` is unset, a known placeholder, or shorter than
+> 32 characters. Generate one with `openssl rand -hex 32`.
 
 For the demographic-map choropleth, copy the states polygons into the SPA:
 

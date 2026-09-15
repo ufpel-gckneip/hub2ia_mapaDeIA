@@ -2,6 +2,9 @@
 COMPOSE = docker compose
 DEV = docker compose -f docker-compose.yml -f docker-compose.dev.yml
 DB_URL = postgresql+psycopg://mapadeia:mapadeia@localhost:5432/mapadeia
+# Dev-only signing key so `make dev-backend` passes the API's SECRET_KEY check.
+# NEVER use this in production — set a real SECRET_KEY there (see .env.example).
+DEV_SECRET_KEY = dev-secret-key-not-for-production-0123456789
 # Python interpreter used for tests. NOTE: make runs recipes in /bin/sh, which
 # does NOT load pyenv/conda/venv activation from your interactive shell — so a
 # bare `python`/`python3` here often resolves to a system interpreter without
@@ -85,7 +88,7 @@ dev-db:
 
 dev-backend:
 	cd backend && DATABASE_URL=$(DB_URL) alembic upgrade head && \
-		DATABASE_URL=$(DB_URL) uvicorn app.main:app --reload
+		DATABASE_URL=$(DB_URL) SECRET_KEY=$(DEV_SECRET_KEY) uvicorn app.main:app --reload
 
 dev-load: states
 	ALLOW_DB_RELOAD=1 DATABASE_URL=$(DB_URL) python files/06_load_db.py
