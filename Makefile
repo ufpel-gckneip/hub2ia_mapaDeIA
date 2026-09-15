@@ -4,7 +4,7 @@ DEV = docker compose -f docker-compose.yml -f docker-compose.dev.yml
 DB_URL = postgresql+psycopg://mapadeia:mapadeia@localhost:5432/mapadeia
 
 .PHONY: help up load states down clean logs psql superuser \
-        dev-db dev-backend dev-load dev-frontend
+        dev-db dev-backend dev-load dev-frontend test
 
 help:
 	@echo "Docker (full stack on http://localhost):"
@@ -20,6 +20,9 @@ help:
 	@echo "  make dev-backend   run FastAPI with --reload against dev-db"
 	@echo "  make dev-load      load data into dev-db"
 	@echo "  make dev-frontend  run Vite dev server (proxies /api to :8000)"
+	@echo ""
+	@echo "Tests:"
+	@echo "  make test          run backend tests (needs dev-db running)"
 
 # ── Docker full stack ──
 states:
@@ -66,3 +69,9 @@ dev-load: states
 
 dev-frontend:
 	cd frontend && npm install && npm run dev
+
+# ── Tests ──
+# Needs a Postgres/PostGIS on localhost:5432 (`make dev-db`). Uses a throwaway
+# `mapadeia_test` database that is dropped/recreated each run.
+test: dev-db
+	cd backend && pip install -q -r requirements-dev.txt && pytest
