@@ -2,20 +2,44 @@
 	import { onMount, onDestroy } from 'svelte';
 	import Graph from 'graphology';
 	import Sigma from 'sigma';
-	import { apiGet } from '$lib/api.js';
+	import { apiGet, apiSend } from '$lib/api.js';
+	import { user, filters } from '$lib/stores.js';
 	import { track } from '$lib/track.js';
 	import { topicColor, rgbCss } from '$lib/palette.js';
 
 	let containerEl;
 	let renderer;
+	let g; // graphology graph (component scope, so reducers/search can reach it)
 	let minDegree = 3;
 	let loading = true;
 	let stats = { nodes: 0, edges: 0 };
+	let detail = null;
+	let searchCount = 0;
+
+	// Focus model (shared by hover + sidebar search): `core` = primary nodes,
+	// `set` = core plus their neighbors (kept visible). Null = no focus.
+	let focusCore = null;
+	let focusSet = null;
+	let hovering = false;
+	let searchCore = new Set();
+
+	function setFocus(core) {
+		if (!core || core.size === 0) {
+			focusCore = null;
+			focusSet = null;
+		} else {
+			focusCore = core;
+			const set = new Set(core);
+			for (const n of core) if (g?.hasNode(n)) for (const nb of g.neighbors(n)) set.add(nb);
+			focusSet = set;
+		}
+		renderer?.refresh();
+	}
 
 	async function render() {
 		loading = true;
 		const data = await apiGet('/graph', { min_degree: minDegree });
-		const g = new Graph({ multi: false, type: 'undirected' });
+		g = new Graph({ multi: false, type: 'undirected' });
 
 		for (const n of data.nodes) {
 			g.addNode(String(n.id), {
@@ -30,19 +54,79 @@
 			const s = String(e.source);
 			const t = String(e.target);
 			if (s === t || !g.hasNode(s) || !g.hasNode(t) || g.hasEdge(s, t)) continue;
-			g.addEdge(s, t, { weight: e.weight, size: Math.min(0.2 + e.weight * 0.15, 3) });
+			g.addEdge(s, t, { weight: e.weight, size: Math.min(0.6 + e.weight * 0.25, 5) });
 		}
 
 		stats = { nodes: g.order, edges: g.size };
 		if (renderer) renderer.kill();
+
 		renderer = new Sigma(g, containerEl, {
-			renderLabels: false,
-			labelRenderedSizeThreshold: 12,
-			defaultEdgeColor: '#ddd'
+			renderLabels: true,
+			labelRenderedSizeThreshold: 100, // effectively off unless forced (hover/search)
+			defaultEdgeColor: '#5b6b7f',
+			minEdgeThickness: 1,
+			// Fade everything outside the current focus set; label the core nodes.
+			nodeReducer: (node, dataN) => {
+				if (!focusSet) return dataN;
+				if (focusSet.has(node)) return focusCore.has(node) ? { ...dataN, forceLabel: true } : dataN;
+				return { ...dataN, color: '#e8e8e8', label: '' };
+			},
+			// Show only edges incident to a core node, emphasized.
+			edgeReducer: (edge, dataE) => {
+				if (!focusCore) return dataE;
+				const [s, t] = g.extremities(edge);
+				return focusCore.has(s) || focusCore.has(t)
+					? { ...dataE, color: '#2c3e50' }
+					: { ...dataE, hidden: true };
+			}
 		});
-		renderer.on('clickNode', ({ node }) => track('graph_node_click', { id: node }));
+
+		renderer.on('enterNode', ({ node }) => {
+			hovering = true;
+			containerEl.style.cursor = 'pointer';
+			setFocus(new Set([node]));
+		});
+		renderer.on('leaveNode', () => {
+			hovering = false;
+			containerEl.style.cursor = 'default';
+			setFocus(searchCore); // revert to the sidebar-search highlight (if any)
+		});
+		renderer.on('clickNode', ({ node }) => openDetail(parseInt(node, 10)));
+
+		applySearch($filters.search); // reapply search highlight to the rebuilt graph
 		loading = false;
 		track('graph_view', { min_degree: minDegree, ...stats });
+	}
+
+	// Highlight nodes whose label matches the sidebar "Buscar pesquisador" text.
+	function applySearch(term) {
+		if (!g || !renderer) return;
+		const q = (term || '').trim().toLowerCase();
+		if (!q) {
+			searchCore = new Set();
+			searchCount = 0;
+			if (!hovering) setFocus(null);
+			return;
+		}
+		const matches = new Set();
+		g.forEachNode((node, attr) => {
+			if ((attr.label || '').toLowerCase().includes(q)) matches.add(node);
+		});
+		searchCore = matches;
+		searchCount = matches.size;
+		if (!hovering) setFocus(matches);
+	}
+
+	// React to the shared sidebar search box.
+	$: applySearch($filters.search);
+
+	async function openDetail(id) {
+		detail = await apiGet(`/researchers/${id}`);
+		track('researcher_view', { id, from: 'graph' });
+	}
+
+	async function favorite(id) {
+		await apiSend('POST', '/me/favorites', { entity_type: 'researcher', entity_id: id });
 	}
 
 	onMount(render);
@@ -57,39 +141,47 @@
 			<input type="range" min="1" max="30" bind:value={minDegree} on:change={render} />
 		</label>
 		<span class="muted">
-			{loading ? 'carregando…' : `${stats.nodes} nós · ${stats.edges} arestas`}
+			{#if loading}carregando…{:else}
+				{stats.nodes} nós · {stats.edges} arestas
+				{#if $filters.search}· <strong>{searchCount}</strong> para “{$filters.search}”{:else}· clique num nó para detalhes{/if}
+			{/if}
 		</span>
 	</div>
 	<div class="graph" bind:this={containerEl}></div>
 </div>
 
+{#if detail}
+	<div class="drawer">
+		<button class="close" on:click={() => (detail = null)}>✕</button>
+		<h3>{detail.display_name}</h3>
+		<p class="muted">{detail.n_articles} artigos · {detail.first_year}–{detail.last_year} · {detail.topic_name}</p>
+		{#if $user}
+			<button class="fav" on:click={() => favorite(detail.researcher_id)}>☆ Favoritar</button>
+		{/if}
+		{#if detail.institutions?.length}
+			<p><strong>Instituições:</strong> {detail.institutions.map((i) => i.full_name).join('; ')}</p>
+		{/if}
+		<h4>Artigos</h4>
+		<ul>
+			{#each detail.articles as a}
+				<li>{a.year} · {a.event} · {a.title}</li>
+			{/each}
+		</ul>
+	</div>
+{/if}
+
 <style>
-	.wrap {
-		height: 100%;
-		display: flex;
-		flex-direction: column;
+	.wrap { height: 100%; display: flex; flex-direction: column; }
+	.bar { display: flex; gap: 20px; align-items: center; padding-bottom: 8px; }
+	label { font-size: 13px; display: flex; gap: 8px; align-items: center; }
+	.muted { color: #888; font-size: 13px; margin-left: auto; }
+	.graph { flex: 1; min-height: 400px; border: 1px solid #e5e5e5; border-radius: 8px; background: #fff; }
+	.drawer {
+		position: fixed; top: 0; right: 0; width: min(480px, 90vw); height: 100vh;
+		background: #fff; box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15); padding: 20px;
+		overflow-y: auto; z-index: 1000;
 	}
-	.bar {
-		display: flex;
-		gap: 20px;
-		align-items: center;
-		padding-bottom: 8px;
-	}
-	label {
-		font-size: 13px;
-		display: flex;
-		gap: 8px;
-		align-items: center;
-	}
-	.muted {
-		color: #888;
-		font-size: 13px;
-		margin-left: auto;
-	}
-	.graph {
-		flex: 1;
-		min-height: 400px;
-		border: 1px solid #e5e5e5;
-		border-radius: 8px;
-	}
+	.close { position: absolute; top: 12px; right: 12px; border: none; background: none; font-size: 18px; cursor: pointer; }
+	.fav { border: 1px solid #ccc; background: #fff; border-radius: 4px; padding: 3px 10px; cursor: pointer; margin-bottom: 8px; }
+	.drawer .muted { margin-left: 0; }
 </style>

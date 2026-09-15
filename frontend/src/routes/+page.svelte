@@ -227,7 +227,15 @@
 
 	onMount(() => {
 		map = new maplibregl.Map({ container: mapEl, style: STYLE, center: [-51.9, -14.2], zoom: 3.4 });
-		overlay = new MapboxOverlay({ interleaved: false, layers: [] });
+		overlay = new MapboxOverlay({
+			interleaved: false,
+			layers: [],
+			// Clicking empty map (no marker picked) collapses the expanded view,
+			// same as "Voltar". Marker clicks set info.object, so they're unaffected.
+			onClick: (info) => {
+				if (!info.object && viewMode === 'authors') backToOverview();
+			}
+		});
 		map.addControl(overlay);
 		map.on('load', () => (mapReady = true));
 
