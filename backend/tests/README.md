@@ -18,12 +18,18 @@ make dev-db          # start Postgres/PostGIS on localhost:5432
 make test            # installs dev deps, then runs pytest
 ```
 
+`make test` calls the interpreter via `$(PYTHON)` (default `python`). Override it
+for pyenv/venv setups — e.g. `make test PYTHON=.venv/bin/python` or
+`make test PYTHON=python3.12`. Use a Python with prebuilt wheels for the deps
+(3.11–3.13 are safest; very new interpreters may lack `pydantic-core`/`psycopg`
+wheels and try to build from source).
+
 Or directly:
 
 ```bash
 cd backend
-pip install -r requirements-dev.txt
-pytest
+python -m pip install -r requirements-dev.txt
+python -m pytest
 ```
 
 The harness drops and recreates a throwaway **`mapadeia_test`** database on each

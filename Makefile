@@ -2,6 +2,10 @@
 COMPOSE = docker compose
 DEV = docker compose -f docker-compose.yml -f docker-compose.dev.yml
 DB_URL = postgresql+psycopg://mapadeia:mapadeia@localhost:5432/mapadeia
+# Python interpreter used for tests. `pip`/`pytest` are invoked as `python -m ...`
+# so they work under pyenv/venvs where bare `pip` isn't on PATH. Override e.g.
+# `make test PYTHON=python3.12` or point at a venv: `make test PYTHON=.venv/bin/python`.
+PYTHON ?= python
 
 .PHONY: help up load states down clean logs psql superuser \
         dev-db dev-backend dev-load dev-frontend test
@@ -74,4 +78,4 @@ dev-frontend:
 # Needs a Postgres/PostGIS on localhost:5432 (`make dev-db`). Uses a throwaway
 # `mapadeia_test` database that is dropped/recreated each run.
 test: dev-db
-	cd backend && pip install -q -r requirements-dev.txt && pytest
+	cd backend && $(PYTHON) -m pip install -q -r requirements-dev.txt && $(PYTHON) -m pytest
