@@ -124,11 +124,23 @@ FastAPI + async SQLAlchemy. Near-static endpoints are cached in-process, keyed o
   state|institution|author` (co-authorship arcs at three granularities).
 - **Topics / graph / articles / stats:** `/api/topics`, `/api/graph?min_degree=`
   (full precomputed graph for Sigma), `/api/articles` (FTS) + `/{id}`, `/api/stats`.
-- **Auth (fastapi-users):** `/auth/jwt/login|logout`, `/auth/register`,
-  `/auth/forgot-password`, `/auth/verify`, `/users/me`.
+- **Auth:** `/auth/jwt/login` (returns an **access + refresh** token pair),
+  `/auth/jwt/refresh` (new access token from a refresh token), `/auth/register`,
+  `/auth/forgot-password`, `/auth/verify`, `/users/me`. Login/refresh are custom
+  (`routers/auth.py`); the rest are fastapi-users.
 - **Per-user:** `/api/me/saved-searches`, `/api/me/favorites`.
 - **Tracking:** `POST /api/events` (optional JWT or anonymous session; 202).
 - **Admin (superuser):** `/api/admin/overview|events|users`, promote user.
+
+**Token model & tradeoff (TODO #6).** The access token is short-lived (~15 min)
+and the refresh token longer (~7 days); they use distinct JWT audiences so
+neither can stand in for the other. The SPA stores both in `localStorage` and
+transparently refreshes on a `401` (`frontend/src/lib/api.js`). Tokens in
+`localStorage` remain readable by JavaScript, so this limits the **blast radius**
+of a stolen access token rather than preventing theft; moving the token into an
+`HttpOnly` cookie would close that gap and is a possible follow-up. Refresh
+tokens are stateless (no server-side revocation list); logout clears them
+client-side.
 
 ---
 

@@ -30,7 +30,10 @@ class Settings(BaseSettings):
     # supplied via the SECRET_KEY env var and pass assert_secure_secret_key(),
     # which the API enforces at startup (see app.main).
     secret_key: str = ""
-    jwt_lifetime_seconds: int = 60 * 60 * 24  # 24h
+    # Short-lived access token + longer refresh token (TODO #6): a stolen access
+    # token is only usable for ~15 min; the refresh token renews it.
+    access_token_lifetime_seconds: int = 60 * 15  # 15 min
+    refresh_token_lifetime_seconds: int = 60 * 60 * 24 * 7  # 7 days
 
     # ── CORS ──
     # Comma-separated list of allowed origins for the SPA in dev.
