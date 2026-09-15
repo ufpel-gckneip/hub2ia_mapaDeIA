@@ -32,8 +32,15 @@
 	<h2>{mode === 'login' ? 'Entrar' : 'Criar conta'}</h2>
 	<form on:submit|preventDefault={submit}>
 		<input type="email" placeholder="E-mail" bind:value={email} required />
-		<input type="password" placeholder="Senha" bind:value={password} required />
+		<input
+			type="password"
+			placeholder="Senha"
+			bind:value={password}
+			required
+			minlength={mode === 'register' ? 10 : undefined}
+		/>
 		{#if mode === 'register'}
+			<p class="hint">Mínimo de 10 caracteres; não pode conter o e-mail.</p>
 			<input placeholder="Nome (opcional)" bind:value={displayName} />
 			<input placeholder="Instituição (opcional)" bind:value={institution} />
 		{/if}
@@ -74,5 +81,10 @@
 	.error {
 		color: #c0392b;
 		font-size: 13px;
+	}
+	.hint {
+		color: #888;
+		font-size: 12px;
+		margin: -4px 0 0;
 	}
 </style>
