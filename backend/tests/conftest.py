@@ -21,6 +21,10 @@ TEST_DATABASE_URL = os.environ.get(
 )
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 
+# Use a strong signing key in tests. This keeps the suite off the insecure
+# default and forward-compatible with TODO #4 (which rejects weak keys at boot).
+os.environ.setdefault("SECRET_KEY", "test-secret-key-not-for-production-0123456789abcdef")
+
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_DIR))  # so `import app` works regardless of cwd
 

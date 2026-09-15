@@ -24,9 +24,11 @@ One branch per item, merged to `main` via PR:
   ephemeral Postgres, and smoke tests for auth (register/login/me), one filtered list
   endpoint (`researchers`), `/api/graph` shape, and admin authz (403 for non-superuser).
   _Done when:_ `pytest` runs green and covers the auth + one read path end-to-end.
-  **How to test:** `make dev-db && make test` (8 tests; drops/recreates a throwaway
-  `mapadeia_test` DB). Details in `backend/tests/README.md`. Verified here: deps install,
-  suite collects (8 tests), app imports — the live DB run needs Docker (your step).
+  **How to test:** `make test` (starts dev-db, then runs 8 tests against a throwaway
+  `mapadeia_test` DB). Details in `backend/tests/README.md`. **Verified green: 8 passed**
+  against the live DB. `make test` defaults to the project `./.venv` interpreter because
+  `make`'s `/bin/sh` doesn't load pyenv/venv activation (system `python` here has no pip);
+  override with `make test PYTHON=<python-with-pip>`.
 
 - [ ] **2. CI pipeline** — `chore/ci`
   `.github/workflows/ci.yml`: backend `pytest` + `ruff check`, frontend `npm run build`
