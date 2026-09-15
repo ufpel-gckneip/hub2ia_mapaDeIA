@@ -29,20 +29,20 @@ One branch per item, merged to `main` via PR:
   (pytest on a `postgis` service container) + frontend (build) jobs. Badge in `README.md`,
   docs in `DOCUMENTATION.md` §9.
 
-- [~] **3. Linters / formatters** — `chore/linting` _(implemented — backend verified; frontend needs your `npm install`)_
-  Backend **ruff** (lint+format) config in `backend/pyproject.toml`, wired into CI. Frontend
-  **eslint** (flat config) + **prettier** + **svelte-check**, scripts in `package.json`,
-  wired into CI (`npm ci` → lint → check → build).
-  _Done when:_ `ruff check .` and `npm run lint` pass.
-  **Backend — verified here:** `ruff check` clean, `ruff format` stable, 8 tests still green.
-  **Frontend — verified green** via `make fe-verify` (runs in `node:20-slim`; only Docker
-  needed): eslint 0 errors, svelte-check 0 errors (4 a11y/unused-CSS **warnings** deferred
-  to #13), build OK. `frontend/package-lock.json` committed for reproducible `npm ci`.
-  Individual steps: `make fe-lint` / `fe-check` / `fe-format` / `fe-build`.
+- [x] **3. Linters / formatters** — `chore/linting` — **merged (PR #4)**
+  Backend **ruff** (lint+format, `backend/pyproject.toml`) and frontend **eslint** +
+  **prettier** + **svelte-check**, both wired into CI. SvelteKit toolchain pinned to the
+  Svelte-4 line; `frontend/package-lock.json` committed. Run frontend tooling without local
+  npm via `make fe-verify` (Dockerized). See `DOCUMENTATION.md` §9.
 
-- [ ] **4. Enforce `SECRET_KEY`, remove insecure default** — `fix/secret-key`
-  `config.py`: drop the `"CHANGE-ME-IN-PRODUCTION"` default; assert a strong key at startup.
+- [~] **4. Enforce `SECRET_KEY`, remove insecure default** — `fix/secret-key` _(implemented — verified; awaiting your PR)_
+  `config.py`: dropped the `"CHANGE-ME-IN-PRODUCTION"` default (now `""`); added
+  `assert_secure_secret_key()` (rejects placeholders + `< 32` chars), enforced at API boot
+  in `main.py`. The pipeline loader is unaffected (never imports the API). `.env.example`
+  requires it; `make dev-backend` supplies a dev-only key.
   _Done when:_ the app refuses to boot without a strong key.
+  **Verified here:** import with a weak key → `RuntimeError` (boot refused); strong key →
+  boots. New `tests/test_config.py` (9 cases); full suite 17 passed; ruff clean.
 
 - [ ] **5. Password policy** — `feat/password-policy`
   `users.py`: override `UserManager.validate_password` (min length ≥ 10, reject
@@ -123,12 +123,22 @@ One branch per item, merged to `main` via PR:
   Replace `create_all` in `0001_initial_schema.py` with explicit `op.create_table` ops.
   _Done when:_ `alembic revision --autogenerate` produces an empty diff.
 
+- [ ] **21. Frontend dependency audit & bundle size** — `chore/frontend-deps` _(surfaced during #3)_
+  `npm install` reports ~10 transitive vulnerabilities (1 critical, 2 high); the main map
+  chunk is ~1.6 MB (gzip ~448 kB). Triage `npm audit` (update/override without breaking
+  Svelte 4), and code-split/lazy-load the heavy map/graph libs (deck.gl, maplibre, sigma).
+  _Done when:_ no critical/high advisories remain and the largest initial chunk is meaningfully
+  smaller (e.g. map libs loaded only on their routes).
+
 ---
 
 ## Changelog
 
 _Newest first. One entry per merged item._
 
+- **2026-09-15** · #3 — Linters/formatters (`chore/linting`, PR #4): ruff (backend) +
+  eslint/prettier/svelte-check (frontend), wired into CI; SvelteKit toolchain pinned to
+  Svelte 4; lockfile committed; Dockerized `make fe-*` targets.
 - **2026-09-15** · #2 — GitHub Actions CI (`chore/ci`, PR #3): backend (pytest on a
   `postgis` service container) + frontend (build) jobs on PRs/pushes to `main`; README badge.
 - **2026-09-15** · #1 — Backend test harness + smoke tests (`chore/backend-tests`, PR #2):

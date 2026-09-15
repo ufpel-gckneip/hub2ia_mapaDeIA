@@ -18,6 +18,11 @@ from app.routers import (
 from app.schemas import UserCreate, UserRead, UserUpdate
 from app.users import auth_backend, fastapi_users
 
+# Refuse to start the API with an unset/weak signing key (fails the boot and the
+# container healthcheck). The loader path never imports this module, so data
+# loading is unaffected.
+settings.assert_secure_secret_key()
+
 app = FastAPI(title="Mapa de IA API", version="1.0")
 
 app.add_middleware(
