@@ -35,19 +35,18 @@ One branch per item, merged to `main` via PR:
   Svelte-4 line; `frontend/package-lock.json` committed. Run frontend tooling without local
   npm via `make fe-verify` (Dockerized). See `DOCUMENTATION.md` §9.
 
-- [~] **4. Enforce `SECRET_KEY`, remove insecure default** — `fix/secret-key` _(implemented — verified; awaiting your PR)_
-  `config.py`: dropped the `"CHANGE-ME-IN-PRODUCTION"` default (now `""`); added
-  `assert_secure_secret_key()` (rejects placeholders + `< 32` chars), enforced at API boot
-  in `main.py`. The pipeline loader is unaffected (never imports the API). `.env.example`
-  requires it; `make dev-backend` supplies a dev-only key.
-  _Done when:_ the app refuses to boot without a strong key.
-  **Verified here:** import with a weak key → `RuntimeError` (boot refused); strong key →
-  boots. New `tests/test_config.py` (9 cases); full suite 17 passed; ruff clean.
+- [x] **4. Enforce `SECRET_KEY`, remove insecure default** — `fix/secret-key` — **merged (PR #5)**
+  Removed the insecure default; `Settings.assert_secure_secret_key()` (rejects placeholders +
+  `< 32` chars) enforced at API boot in `main.py`; loader unaffected. `tests/test_config.py`.
 
-- [ ] **5. Password policy** — `feat/password-policy`
-  `users.py`: override `UserManager.validate_password` (min length ≥ 10, reject
-  email-in-password). Add `minlength` on the login form.
-  _Done when:_ a weak password is rejected server-side (422).
+- [~] **5. Password policy** — `feat/password-policy` _(implemented — verified; awaiting your PR)_
+  `users.py`: `UserManager.validate_password` rejects passwords `< 10` chars or containing the
+  e-mail (raises `InvalidPasswordException` → HTTP 400 on register/reset). Login form adds
+  `minlength=10` (register mode) + a hint.
+  _Done when:_ a weak password is rejected server-side.
+  **Verified here:** short and email-in-password registers → 400; strong → 201. New
+  `tests/test_auth.py` (3 cases); full suite 20 passed; ruff clean. Frontend: run
+  `make fe-verify` to confirm the login-page change lints/builds.
 
 - [ ] **6. Harden JWT handling** — `feat/jwt-hardening`
   Move token to an `HttpOnly` cookie **or** add short-lived access + refresh tokens with
@@ -136,6 +135,8 @@ One branch per item, merged to `main` via PR:
 
 _Newest first. One entry per merged item._
 
+- **2026-09-15** · #4 — Enforce strong `SECRET_KEY` (`fix/secret-key`, PR #5): removed the
+  insecure default; API refuses to boot with an unset/weak/placeholder key; loader unaffected.
 - **2026-09-15** · #3 — Linters/formatters (`chore/linting`, PR #4): ruff (backend) +
   eslint/prettier/svelte-check (frontend), wired into CI; SvelteKit toolchain pinned to
   Svelte 4; lockfile committed; Dockerized `make fe-*` targets.

@@ -11,11 +11,15 @@ from fastapi_users.authentication import (
     JWTStrategy,
 )
 from fastapi_users.db import SQLAlchemyUserDatabase
+from fastapi_users.exceptions import InvalidPasswordException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.db import get_async_session
 from app.models import User
+
+# Minimum acceptable account password length (enforced on register + reset).
+PASSWORD_MIN_LENGTH = 10
 
 
 async def get_user_db(
@@ -27,6 +31,20 @@ async def get_user_db(
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     reset_password_token_secret = settings.secret_key
     verification_token_secret = settings.secret_key
+
+    async def validate_password(self, password: str, user) -> None:
+        """Reject weak passwords on register and password reset.
+
+        `user` is the UserCreate schema (register) or the User model (reset);
+        both expose `.email`. Raising InvalidPasswordException makes the router
+        return HTTP 400 with the reason.
+        """
+        if len(password) < PASSWORD_MIN_LENGTH:
+            raise InvalidPasswordException(
+                reason=f"A senha deve ter ao menos {PASSWORD_MIN_LENGTH} caracteres."
+            )
+        if user.email.lower() in password.lower():
+            raise InvalidPasswordException(reason="A senha não pode conter o e-mail.")
 
 
 async def get_user_manager(
