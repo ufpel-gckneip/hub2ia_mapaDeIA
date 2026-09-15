@@ -35,13 +35,10 @@ One branch per item, merged to `main` via PR:
   wired into CI (`npm ci` → lint → check → build).
   _Done when:_ `ruff check .` and `npm run lint` pass.
   **Backend — verified here:** `ruff check` clean, `ruff format` stable, 8 tests still green.
-  **Frontend — your step (no local npm needed; runs in a Node container via Docker):**
-  ```
-  make fe-verify   # install + prettier + eslint + svelte-check + build, in node:20-slim
-  ```
-  Generates `frontend/package-lock.json` (COMMIT it). Paste any lint/check errors and I'll
-  fix them in the code, then we finalize the PR. Individual steps: `make fe-lint`,
-  `make fe-check`, `make fe-format`, `make fe-build`.
+  **Frontend — verified green** via `make fe-verify` (runs in `node:20-slim`; only Docker
+  needed): eslint 0 errors, svelte-check 0 errors (4 a11y/unused-CSS **warnings** deferred
+  to #13), build OK. `frontend/package-lock.json` committed for reproducible `npm ci`.
+  Individual steps: `make fe-lint` / `fe-check` / `fe-format` / `fe-build`.
 
 - [ ] **4. Enforce `SECRET_KEY`, remove insecure default** — `fix/secret-key`
   `config.py`: drop the `"CHANGE-ME-IN-PRODUCTION"` default; assert a strong key at startup.
