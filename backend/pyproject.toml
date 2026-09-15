@@ -1,0 +1,5 @@
+[tool.pytest.ini_options]
+# Tests run against a real (PostGIS) Postgres — see tests/conftest.py.
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-ra"

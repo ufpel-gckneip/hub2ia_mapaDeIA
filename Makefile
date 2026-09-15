@@ -2,9 +2,17 @@
 COMPOSE = docker compose
 DEV = docker compose -f docker-compose.yml -f docker-compose.dev.yml
 DB_URL = postgresql+psycopg://mapadeia:mapadeia@localhost:5432/mapadeia
+# Python interpreter used for tests. NOTE: make runs recipes in /bin/sh, which
+# does NOT load pyenv/conda/venv activation from your interactive shell — so a
+# bare `python`/`python3` here often resolves to a system interpreter without
+# pip. We therefore default to the project virtualenv at ./.venv (absolute path,
+# so it survives the `cd backend` in the recipe). Override when needed, e.g.:
+#   make test PYTHON=$$(which python)     # some other interpreter that has pip
+# Create the venv once if you don't have it:  python -m venv .venv
+PYTHON ?= $(CURDIR)/.venv/bin/python
 
 .PHONY: help up load states down clean logs psql superuser \
-        dev-db dev-backend dev-load dev-frontend
+        dev-db dev-backend dev-load dev-frontend test
 
 help:
 	@echo "Docker (full stack on http://localhost):"
@@ -20,6 +28,9 @@ help:
 	@echo "  make dev-backend   run FastAPI with --reload against dev-db"
 	@echo "  make dev-load      load data into dev-db"
 	@echo "  make dev-frontend  run Vite dev server (proxies /api to :8000)"
+	@echo ""
+	@echo "Tests:"
+	@echo "  make test          run backend tests (needs dev-db running)"
 
 # ── Docker full stack ──
 states:
@@ -66,3 +77,14 @@ dev-load: states
 
 dev-frontend:
 	cd frontend && npm install && npm run dev
+
+# ── Tests ──
+# Needs a Postgres/PostGIS on localhost:5432 (`make dev-db`). Uses a throwaway
+# `mapadeia_test` database that is dropped/recreated each run.
+test: dev-db
+	@$(PYTHON) -c "import sys; print('Using', sys.executable, sys.version.split()[0])" \
+		|| { echo "ERROR: '$(PYTHON)' not found. Try: make test PYTHON=\$$(pyenv which python)"; exit 1; }
+	@$(PYTHON) -m pip --version >/dev/null 2>&1 \
+		|| { echo "ERROR: '$(PYTHON)' has no pip. Use a venv or pyenv Python:"; \
+		     echo "  make test PYTHON=\$$(pyenv which python)"; exit 1; }
+	cd backend && $(PYTHON) -m pip install -q -r requirements-dev.txt && $(PYTHON) -m pytest
