@@ -1,5 +1,7 @@
 # Mapa de IA
 
+[![CI](https://github.com/ufpel-gckneip/hub2ia_mapaDeIA/actions/workflows/ci.yml/badge.svg)](https://github.com/ufpel-gckneip/hub2ia_mapaDeIA/actions/workflows/ci.yml)
+
 Mapa interativo de pesquisadores brasileiros de Inteligência Artificial. Os dados
 são extraídos da [SBC Online Library](https://sol.sbc.org.br) (BRACIS, ENIAC,
 SBRC, SIBGRAPI e outros eventos), consolidados por pesquisador, agrupados por

@@ -1,0 +1,114 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Continuous Integration for Mapa de IA
+#
+# Runs on pull requests targeting `main` and on pushes to `main` (e.g. after a
+# merge). Two independent jobs run in parallel:
+#   • backend  — pytest against a real Postgres/PostGIS service container
+#   • frontend — install deps + production build (catches compile/import errors)
+#
+# Linting (ruff) and type-checking (svelte-check) are intentionally NOT here yet;
+# they land in TODO #3 (linters), which will add their configs and CI steps.
+#
+# GitHub Actions primer (this file is confusing at first — here's the map):
+#   name            → label shown in the Actions tab.
+#   on              → which events trigger the workflow.
+#   concurrency     → cancels an in-progress run when you push again to the same
+#                     PR/branch, so only the latest commit is tested.
+#   jobs            → run on separate fresh VMs ("runners"), in parallel.
+#   steps           → run sequentially inside one job, sharing its filesystem.
+#   uses            → a prebuilt action (versioned, e.g. actions/checkout@v4).
+#   run             → a shell command on the runner.
+#   services        → extra Docker containers (here: the database) available to
+#                     the job at `localhost:<mapped-port>`.
+# ─────────────────────────────────────────────────────────────────────────────
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# One run per ref; a new push cancels the previous in-progress run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Backend: run the pytest smoke suite against real Postgres/PostGIS ──
+  backend:
+    name: backend (pytest)
+    runs-on: ubuntu-latest
+
+    # A throwaway database for this job only. Mirrors the local `make dev-db`
+    # image so the tests exercise the same PostGIS/CITEXT/FTS features. The
+    # `mapadeia` user is a superuser in this image, so conftest.py can CREATE
+    # the throwaway `mapadeia_test` database.
+    services:
+      db:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: mapadeia
+          POSTGRES_PASSWORD: mapadeia
+          POSTGRES_DB: mapadeia
+        ports:
+          - 5432:5432
+        # The runner waits until Postgres is accepting connections before the
+        # steps start, so tests never race the DB coming up.
+        options: >-
+          --health-cmd "pg_isready -U mapadeia"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    # Env for every step. conftest.py reads TEST_DATABASE_URL (and points the app
+    # at it); SECRET_KEY keeps the suite off the insecure default.
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://mapadeia:mapadeia@localhost:5432/mapadeia_test
+      SECRET_KEY: ci-secret-key-not-for-production-0123456789abcdef
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install backend + test dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Run tests
+        working-directory: backend
+        run: python -m pytest
+
+  # ── Frontend: install and build the SvelteKit SPA ──
+  frontend:
+    name: frontend (build)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # No package-lock.json is committed yet, so `npm install` (not `npm ci`).
+      # TODO #3 will add a lockfile (installing eslint updates it) and switch this
+      # to `npm ci` + dependency caching for reproducible, faster builds.
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm install --no-audit --no-fund
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build

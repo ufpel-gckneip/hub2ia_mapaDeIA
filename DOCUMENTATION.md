@@ -173,3 +173,21 @@ MapLibre); self-hostable for production independence.
   with Sigma.js; added the university→author drill-down the old flat map lacked.
 - Authoritative state handling still pending (see the planned PostGIS `states`
   table for point-in-polygon assignment).
+
+## 9. Continuous integration (`.github/workflows/ci.yml`)
+
+GitHub Actions runs on **pull requests targeting `main`** and on **pushes to
+`main`**. Two parallel jobs:
+
+- **backend** — spins a `postgis/postgis:16-3.4` *service container*, installs
+  `backend/requirements-dev.txt`, and runs `pytest`. It sets `TEST_DATABASE_URL`
+  to the container and a throwaway `SECRET_KEY`; `conftest.py` creates/drops the
+  `mapadeia_test` database, so CI exercises the real migrations + PostGIS/FTS.
+- **frontend** — `npm install` + `npm run build` (a broken import or Svelte
+  compile error fails the build). The SPA is fully client-side (`ssr=false`), so
+  the build needs neither the API nor the DB.
+
+`concurrency` cancels a superseded run when you push again to the same PR. Lint
+(ruff) and type-check (svelte-check) steps are added in TODO #3 alongside their
+configs and a committed `package-lock.json` (which lets frontend switch to the
+faster, reproducible `npm ci`).

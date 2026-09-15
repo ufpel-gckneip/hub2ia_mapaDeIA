@@ -19,21 +19,20 @@ One branch per item, merged to `main` via PR:
 
 ## P0 — Safety net & security must-fixes
 
-- [~] **1. Backend test harness + smoke tests** — `chore/backend-tests` _(implemented — awaiting your test run + PR)_
-  Add `pyproject.toml` (pytest + `httpx` + `pytest-asyncio`), a `conftest.py` with an
-  ephemeral Postgres, and smoke tests for auth (register/login/me), one filtered list
-  endpoint (`researchers`), `/api/graph` shape, and admin authz (403 for non-superuser).
-  _Done when:_ `pytest` runs green and covers the auth + one read path end-to-end.
-  **How to test:** `make test` (starts dev-db, then runs 8 tests against a throwaway
-  `mapadeia_test` DB). Details in `backend/tests/README.md`. **Verified green: 8 passed**
-  against the live DB. `make test` defaults to the project `./.venv` interpreter because
-  `make`'s `/bin/sh` doesn't load pyenv/venv activation (system `python` here has no pip);
-  override with `make test PYTHON=<python-with-pip>`.
+- [x] **1. Backend test harness + smoke tests** — `chore/backend-tests` — **merged (PR #2)**
+  8-test pytest smoke suite (auth flow, researchers/graph shape, admin authz) driving the
+  app in-process against a throwaway `mapadeia_test` DB with the real migrations.
+  `make test` runs it. See `backend/tests/README.md`.
 
-- [ ] **2. CI pipeline** — `chore/ci`
-  `.github/workflows/ci.yml`: backend `pytest` + `ruff check`, frontend `npm run build`
-  + `svelte-check`.
+- [~] **2. CI pipeline** — `chore/ci` _(implemented — awaiting your test + PR)_
+  `.github/workflows/ci.yml`: runs on **PRs targeting `main` + pushes to `main`**. Two
+  parallel jobs — **backend** `pytest` against a `postgis` service container, **frontend**
+  `npm install` + `npm run build`. `ruff check` and `svelte-check` are **deferred to #3**
+  (they need configs + a lockfile that #3 introduces).
   _Done when:_ a PR runs the workflow and blocks on failure.
+  **How to test:** push the branch and open a PR to `main` — the "CI" checks appear on the
+  PR (Actions tab). Both jobs should go green. Locally, `make test` still covers the backend
+  job. Docs: `DOCUMENTATION.md` §9; badge in `README.md`.
 
 - [ ] **3. Linters / formatters** — `chore/linting`
   Backend `ruff` (lint+format) in `pyproject.toml`; frontend `eslint` + `prettier`.
@@ -127,5 +126,9 @@ One branch per item, merged to `main` via PR:
 ## Changelog
 
 _Newest first. One entry per merged item._
+
+- **2026-09-15** · #1 — Backend test harness + smoke tests (`chore/backend-tests`, PR #2):
+  8-test pytest suite (auth, researchers/graph shape, admin authz) against a throwaway
+  `mapadeia_test` DB with the real migrations; `make test` runner.
 
 <!-- - **YYYY-MM-DD** · #N — <title> (`branch`): <one-line summary>. -->
