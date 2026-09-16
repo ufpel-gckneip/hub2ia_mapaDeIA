@@ -1,6 +1,10 @@
 """Tiny in-process TTL cache, invalidated when the pipeline bumps
 meta.data_version. Good enough for a single-process research deployment; swap
 for Redis if you scale to multiple workers.
+
+Because the store below is per-process, this cache is only coherent with a
+single worker. `WEB_CONCURRENCY` therefore defaults to 1 (entrypoint.sh,
+docker-compose.yml, .env.example); raising it requires a shared cache first.
 """
 
 import time

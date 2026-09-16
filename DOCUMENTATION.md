@@ -114,7 +114,9 @@ researchers (605), institution collisions, merged duplicate articles.
 ## 5. Backend API (`backend/app/`)
 
 FastAPI + async SQLAlchemy. Near-static endpoints are cached in-process, keyed on
-`meta.data_version`.
+`meta.data_version`. The cache is **per-process**, so it is only coherent with a
+single worker — `WEB_CONCURRENCY` defaults to 1; scaling out needs a shared cache
+(e.g. Redis) first.
 
 - **Researchers:** `GET /api/researchers` (filter topic/min_articles/state/event/q/
   year, paginated), `/{id}`, `/{id}/coauthors`.

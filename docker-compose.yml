@@ -23,7 +23,9 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-mapadeia}:${POSTGRES_PASSWORD:-mapadeia}@db:5432/${POSTGRES_DB:-mapadeia}
       SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
-      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+      # 1 worker by default: the API cache is per-process (backend/app/cache.py).
+      # Only raise this with a shared cache (e.g. Redis) — see DEPLOY.md.
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
     depends_on:
       db:
         condition: service_healthy
