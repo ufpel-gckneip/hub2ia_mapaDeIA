@@ -65,7 +65,7 @@ One branch per item, merged to `main` via PR:
   invariant. `test_smoke.py::test_graph_shape`.
   _Done when:_ at `min_degree=5` only edges between surviving nodes are returned.
 
-- [~] **8. Reduce graph payload to the browser** — `perf/graph-payload` _(implemented — `svelte-check`/eslint/prettier clean; awaiting your testing + PR)_
+- [~] **8. Reduce graph payload to the browser** — `perf/graph-payload` _(implemented — tested; `svelte-check`/eslint/prettier clean; awaiting your PR)_
   `graph/+page.svelte`: default `min_degree` stays 3, which (with #7's SQL thinning) bounds the
   initial payload instead of shipping most of the ~8.9k-node / ~23k-edge graph. Slider is now
   debounced (200 ms) and guarded by a render token so overlapping/stale responses can't clobber
