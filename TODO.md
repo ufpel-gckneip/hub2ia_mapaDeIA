@@ -57,7 +57,7 @@ One branch per item, merged to `main` via PR:
 
 ## P1 — Correctness & scale
 
-- [~] **7. Graph endpoint: filter edges in SQL** — `fix/graph-edge-sql` _(implemented — awaiting your testing + PR)_
+- [x] **7. Graph endpoint: filter edges in SQL** — `fix/graph-edge-sql` — **merged (PR #12)**
   `graph.py`: replaced the Python `if source in ids` filter with a `WITH kept AS (…)` CTE over
   the degree-filtered node set, joined against both edge endpoints, so `min_degree` reduces
   DB→app transfer. The CTE mirrors the node query (same `degree >= :min_degree` + `researchers`
@@ -65,9 +65,12 @@ One branch per item, merged to `main` via PR:
   invariant. `test_smoke.py::test_graph_shape`.
   _Done when:_ at `min_degree=5` only edges between surviving nodes are returned.
 
-- [ ] **8. Reduce graph payload to the browser** — `perf/graph-payload`
-  Keep `min_degree` default ≥ 3; build graphology off the main thread / consider
-  pre-thinned tiers. `graph/+page.svelte`.
+- [~] **8. Reduce graph payload to the browser** — `perf/graph-payload` _(implemented — tested; `svelte-check`/eslint/prettier clean; awaiting your PR)_
+  `graph/+page.svelte`: default `min_degree` stays 3, which (with #7's SQL thinning) bounds the
+  initial payload instead of shipping most of the ~8.9k-node / ~23k-edge graph. Slider is now
+  debounced (200 ms) and guarded by a render token so overlapping/stale responses can't clobber
+  the live graph; the build yields a frame first so "carregando…" paints instead of the UI
+  looking frozen, and the graph is built into a local instance and swapped in only when complete.
   _Done when:_ initial `/graph` load ships a bounded payload and the slider doesn't freeze.
 
 - [ ] **9. Fix cache/concurrency mismatch** — `fix/cache-concurrency`
@@ -140,6 +143,9 @@ One branch per item, merged to `main` via PR:
 
 _Newest first. One entry per merged item._
 
+- **2026-09-16** · #7 — Filter graph edges in SQL (`fix/graph-edge-sql`, PR #12): replaced the
+  Python edge filter with a `WITH kept AS (…)` CTE over the degree-filtered node set, so
+  `min_degree` thins edges in the DB; smoke test asserts edges connect only surviving nodes.
 - **2026-09-16** · #6 — Harden JWT handling (`feat/jwt-hardening`, PR #11): short-lived access
   (15 min) + refresh (7 days) tokens with distinct JWT audiences; custom `/auth/jwt/login` +
   `/auth/jwt/refresh`; frontend auto-refreshes on 401. Tradeoff documented in `DOCUMENTATION.md` §5.
