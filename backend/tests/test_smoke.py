@@ -60,6 +60,11 @@ async def test_graph_shape(client, min_degree):
     body = r.json()
     assert isinstance(body["nodes"], list)
     assert isinstance(body["edges"], list)
+    # Every returned edge must connect two surviving (degree-filtered) nodes;
+    # the endpoint filters this in SQL rather than shipping every edge.
+    ids = {n["id"] for n in body["nodes"]}
+    for e in body["edges"]:
+        assert e["source"] in ids and e["target"] in ids
 
 
 async def test_admin_requires_auth(client):

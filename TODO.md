@@ -43,7 +43,7 @@ One branch per item, merged to `main` via PR:
   `UserManager.validate_password` rejects passwords `< 10` chars or containing the e-mail
   (HTTP 400 on register/reset); login form `minlength=10` + hint. `tests/test_auth.py`.
 
-- [~] **6. Harden JWT handling** — `feat/jwt-hardening` _(implemented — backend verified; awaiting your PR)_
+- [x] **6. Harden JWT handling** — `feat/jwt-hardening` — **merged (PR #11)**
   **Chosen: short-lived access + refresh tokens** (over the HttpOnly-cookie option). Access
   TTL 15 min, refresh 7 days, **distinct JWT audiences** so neither substitutes for the other.
   Custom `routers/auth.py` (`/auth/jwt/login` → pair, `/auth/jwt/refresh` → new access);
@@ -57,9 +57,12 @@ One branch per item, merged to `main` via PR:
 
 ## P1 — Correctness & scale
 
-- [ ] **7. Graph endpoint: filter edges in SQL** — `fix/graph-edge-sql`
-  `graph.py`: replace the Python `if source in ids` filter with a SQL join/`IN` on the
-  degree-filtered node set so `min_degree` reduces DB→app transfer.
+- [~] **7. Graph endpoint: filter edges in SQL** — `fix/graph-edge-sql` _(implemented — awaiting your testing + PR)_
+  `graph.py`: replaced the Python `if source in ids` filter with a `WITH kept AS (…)` CTE over
+  the degree-filtered node set, joined against both edge endpoints, so `min_degree` reduces
+  DB→app transfer. The CTE mirrors the node query (same `degree >= :min_degree` + `researchers`
+  join), so returned edges connect exactly the surviving nodes. Smoke test now asserts the
+  invariant. `test_smoke.py::test_graph_shape`.
   _Done when:_ at `min_degree=5` only edges between surviving nodes are returned.
 
 - [ ] **8. Reduce graph payload to the browser** — `perf/graph-payload`
@@ -137,6 +140,9 @@ One branch per item, merged to `main` via PR:
 
 _Newest first. One entry per merged item._
 
+- **2026-09-16** · #6 — Harden JWT handling (`feat/jwt-hardening`, PR #11): short-lived access
+  (15 min) + refresh (7 days) tokens with distinct JWT audiences; custom `/auth/jwt/login` +
+  `/auth/jwt/refresh`; frontend auto-refreshes on 401. Tradeoff documented in `DOCUMENTATION.md` §5.
 - **2026-09-15** · #5 — Account password policy (`feat/password-policy`, PR #6): reject
   passwords `< 10` chars or containing the e-mail (HTTP 400); login form `minlength`.
 - **2026-09-15** · #4 — Enforce strong `SECRET_KEY` (`fix/secret-key`, PR #5): removed the
