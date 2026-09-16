@@ -37,6 +37,11 @@ cp .env.example .env
 > never passes) if `SECRET_KEY` is unset, a known placeholder, or shorter than
 > 32 characters. Generate one with `openssl rand -hex 32`.
 
+> **Keep `WEB_CONCURRENCY=1`.** The API cache is per-process (`backend/app/cache.py`),
+> so extra workers each hold their own cache and pipeline invalidation
+> (`data_version` bump) only reaches one of them. Scale out only after moving the
+> cache to a shared store (e.g. Redis).
+
 For the demographic-map choropleth, copy the states polygons into the SPA:
 
 ```bash
