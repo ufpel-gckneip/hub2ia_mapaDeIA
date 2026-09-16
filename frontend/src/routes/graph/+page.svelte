@@ -10,8 +10,13 @@
 	let containerEl;
 	let renderer;
 	let g; // graphology graph (component scope, so reducers/search can reach it)
+	// Default ≥ 3 keeps the initial payload bounded: the backend thins nodes AND
+	// edges in SQL by min_degree (see routers/graph.py), so a lower default would
+	// ship most of the ~8.9k-node / ~23k-edge graph on first load.
 	let minDegree = 3;
 	let loading = true;
+	let renderToken = 0; // guards against overlapping/stale slider-triggered renders
+	let sliderTimer; // debounce for the min-degree slider
 	let stats = { nodes: 0, edges: 0 };
 	let detail = null;
 	let searchCount = 0;
@@ -36,13 +41,31 @@
 		renderer?.refresh();
 	}
 
-	async function render() {
-		loading = true;
-		const data = await apiGet('/graph', { min_degree: minDegree });
-		g = new Graph({ multi: false, type: 'undirected' });
+	// Debounce slider moves: rebuild once the user settles, not on every tick,
+	// so dragging across values doesn't fire a burst of fetches/rebuilds.
+	function scheduleRender() {
+		clearTimeout(sliderTimer);
+		sliderTimer = setTimeout(render, 200);
+	}
 
+	async function render() {
+		const token = ++renderToken;
+		loading = true;
+		// Yield a frame so the "carregando…" state actually paints before the
+		// synchronous graphology build + Sigma init below — otherwise a slider
+		// change looks like a frozen UI while the main thread is busy.
+		await new Promise((r) => requestAnimationFrame(r));
+
+		const data = await apiGet('/graph', { min_degree: minDegree });
+		// A newer slider change superseded this request: drop the stale response
+		// instead of clobbering the fresh graph (and doing the build work twice).
+		if (token !== renderToken) return;
+
+		// Build into a local graph and adopt it only once complete, so a
+		// half-built graph is never briefly live for the reducers/search.
+		const graph = new Graph({ multi: false, type: 'undirected' });
 		for (const n of data.nodes) {
-			g.addNode(String(n.id), {
+			graph.addNode(String(n.id), {
 				x: n.x ?? Math.random(),
 				y: n.y ?? Math.random(),
 				size: Math.max(2, Math.min(Math.sqrt(n.degree) * 1.5, 20)),
@@ -53,10 +76,11 @@
 		for (const e of data.edges) {
 			const s = String(e.source);
 			const t = String(e.target);
-			if (s === t || !g.hasNode(s) || !g.hasNode(t) || g.hasEdge(s, t)) continue;
-			g.addEdge(s, t, { weight: e.weight, size: Math.min(0.6 + e.weight * 0.25, 5) });
+			if (s === t || !graph.hasNode(s) || !graph.hasNode(t) || graph.hasEdge(s, t)) continue;
+			graph.addEdge(s, t, { weight: e.weight, size: Math.min(0.6 + e.weight * 0.25, 5) });
 		}
 
+		g = graph;
 		stats = { nodes: g.order, edges: g.size };
 		if (renderer) renderer.kill();
 
@@ -130,7 +154,11 @@
 	}
 
 	onMount(render);
-	onDestroy(() => renderer && renderer.kill());
+	onDestroy(() => {
+		clearTimeout(sliderTimer);
+		renderToken++; // invalidate any in-flight render
+		if (renderer) renderer.kill();
+	});
 </script>
 
 <div class="wrap">
@@ -138,7 +166,7 @@
 		<strong>Mapa de Coautoria</strong>
 		<label>
 			Grau mínimo: {minDegree}
-			<input type="range" min="1" max="30" bind:value={minDegree} on:change={render} />
+			<input type="range" min="1" max="30" bind:value={minDegree} on:input={scheduleRender} />
 		</label>
 		<span class="muted">
 			{#if loading}carregando…{:else}
