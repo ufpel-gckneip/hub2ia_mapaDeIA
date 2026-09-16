@@ -92,6 +92,12 @@ async def arcs(
     return await cache.cached(f"arcs:{level}:{min_weight}:{limit}", session, produce)
 
 
+# Individual researcher points are meant to be narrowed (a viewport bbox or a
+# sidebar filter). Without any narrowing filter the effective limit is clamped to
+# this, so an unfiltered request can't dump the whole ~8.3k-row geolocated set.
+UNFILTERED_POINT_CAP = 500
+
+
 @router.get("/researchers")
 async def map_researchers(
     session: AsyncSession = Depends(get_async_session),
@@ -99,10 +105,11 @@ async def map_researchers(
     min_articles: int = 1,
     q: str | None = None,
     bbox: str | None = Query(None, description="minLng,minLat,maxLng,maxLat"),
-    limit: int = Query(8000, ge=1, le=20000),
+    limit: int = Query(2000, ge=1, le=2000),
 ):
     where = ["r.geom IS NOT NULL", "r.n_articles >= :min_articles"]
-    params: dict = {"min_articles": min_articles, "limit": limit}
+    params: dict = {"min_articles": min_articles}
+    bbox_applied = False
     if topic_id:
         where.append("r.topic_id = ANY(:topic_id)")
         params["topic_id"] = topic_id
@@ -114,8 +121,12 @@ async def map_researchers(
             mnx, mny, mxx, mxy = (float(x) for x in bbox.split(","))
             where.append("r.geom && ST_MakeEnvelope(:mnx,:mny,:mxx,:mxy,4326)")
             params.update(mnx=mnx, mny=mny, mxx=mxx, mxy=mxy)
+            bbox_applied = True
         except ValueError:
             pass
+    # Clamp unfiltered pulls; a bbox or any sidebar filter unlocks the full limit.
+    narrowed = bool(topic_id or q or min_articles > 1 or bbox_applied)
+    params["limit"] = limit if narrowed else min(limit, UNFILTERED_POINT_CAP)
     rows = (
         (
             await session.execute(

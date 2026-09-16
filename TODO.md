@@ -73,7 +73,7 @@ One branch per item, merged to `main` via PR:
   looking frozen, and the graph is built into a local instance and swapped in only when complete.
   _Done when:_ initial `/graph` load ships a bounded payload and the slider doesn't freeze.
 
-- [~] **9. Fix cache/concurrency mismatch** — `fix/cache-concurrency` _(implemented — ruff clean; awaiting your testing + PR)_
+- [x] **9. Fix cache/concurrency mismatch** — `fix/cache-concurrency` — **merged (PR #14)**
   **Chosen: `WEB_CONCURRENCY=1` documented default** (over adding Redis). Changed the default
   from 2→1 in `entrypoint.sh`, `docker-compose.yml`, and `.env.example`, each with a comment
   pointing at the per-process cache. Documented the coupling in `cache.py`'s docstring,
@@ -81,9 +81,12 @@ One branch per item, merged to `main` via PR:
   called out as requiring a shared cache (Redis) first.
   _Done when:_ cache behavior is coherent across the configured worker count.
 
-- [ ] **10. Cap the researcher-dump endpoint** — `fix/researcher-dump-cap`
-  `map_data.py`: `limit` up to 20,000 allows a full dump. Lower the ceiling or require a
-  bbox/filter for large pulls.
+- [~] **10. Cap the researcher-dump endpoint** — `fix/researcher-dump-cap` _(implemented — ruff clean; awaiting your testing + PR)_
+  `map_data.py` `/map/researchers`: lowered the `limit` ceiling 20,000→2,000 (default 8,000→2,000)
+  **and** hard-cap unfiltered pulls at `UNFILTERED_POINT_CAP = 500` — a `bbox` or any sidebar
+  filter (topic/q/min_articles) unlocks the full limit. So an unfiltered request can't dump the
+  whole ~8.3k-row geolocated set. Smoke test asserts a full-table `limit` is a 422; documented in
+  `DOCUMENTATION.md` §5. `test_smoke.py::test_map_researchers_dump_capped`.
   _Done when:_ an unfiltered request can't pull the entire researcher table.
 
 - [ ] **11. Return 422 on bad `bbox`** — `fix/bbox-validation`
@@ -146,6 +149,9 @@ One branch per item, merged to `main` via PR:
 
 _Newest first. One entry per merged item._
 
+- **2026-09-16** · #9 — Fix cache/concurrency mismatch (`fix/cache-concurrency`, PR #14):
+  `WEB_CONCURRENCY` default 2→1 (entrypoint.sh, docker-compose.yml, .env.example) since the
+  API cache is per-process; coupling documented in cache.py, DEPLOY.md, DOCUMENTATION.md §5.
 - **2026-09-16** · #8 — Reduce graph payload to the browser (`perf/graph-payload`, PR #13):
   `min_degree` default stays 3 to bound the initial payload; min-degree slider debounced
   (200 ms) + render-token guard against stale/overlapping rebuilds; yield-before-build so

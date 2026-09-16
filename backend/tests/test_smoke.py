@@ -67,6 +67,18 @@ async def test_graph_shape(client, min_degree):
         assert e["source"] in ids and e["target"] in ids
 
 
+async def test_map_researchers_dump_capped(client):
+    # The dump endpoint must not allow pulling the whole researcher table:
+    # the limit ceiling is bounded (a full-table limit is a 422), and an
+    # unfiltered request returns a well-formed (capped) point list.
+    r = await client.get("/api/map/researchers", params={"limit": 20000})
+    assert r.status_code == 422, r.text
+
+    r = await client.get("/api/map/researchers")
+    assert r.status_code == 200, r.text
+    assert isinstance(r.json()["points"], list)
+
+
 async def test_admin_requires_auth(client):
     r = await client.get("/api/admin/overview")
     assert r.status_code == 401
