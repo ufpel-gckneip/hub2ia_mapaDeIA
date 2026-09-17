@@ -67,6 +67,31 @@ async def test_graph_shape(client, min_degree):
         assert e["source"] in ids and e["target"] in ids
 
 
+async def test_map_researchers_dump_capped(client):
+    # The dump endpoint must not allow pulling the whole researcher table:
+    # the limit ceiling is bounded (a full-table limit is a 422), and an
+    # unfiltered request returns a well-formed (capped) point list.
+    r = await client.get("/api/map/researchers", params={"limit": 20000})
+    assert r.status_code == 422, r.text
+
+    r = await client.get("/api/map/researchers")
+    assert r.status_code == 200, r.text
+    assert isinstance(r.json()["points"], list)
+
+
+async def test_map_researchers_bad_bbox_is_422(client):
+    # A malformed bbox must fail loudly (422), not silently fall back to an
+    # unfiltered pull. Both wrong-arity and non-numeric coords are rejected;
+    # a well-formed bbox still succeeds.
+    for bad in ("1,2,3", "a,b,c,d", "1,2,3,4,5"):
+        r = await client.get("/api/map/researchers", params={"bbox": bad})
+        assert r.status_code == 422, f"{bad!r} -> {r.status_code}: {r.text}"
+
+    r = await client.get("/api/map/researchers", params={"bbox": "-54,-34,-34,6"})
+    assert r.status_code == 200, r.text
+    assert isinstance(r.json()["points"], list)
+
+
 async def test_admin_requires_auth(client):
     r = await client.get("/api/admin/overview")
     assert r.status_code == 401

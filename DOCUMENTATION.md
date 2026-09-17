@@ -122,7 +122,9 @@ single worker — `WEB_CONCURRENCY` defaults to 1; scaling out needs a shared ca
   year, paginated), `/{id}`, `/{id}/coauthors`.
 - **Map:** `/api/map/institutions` (one marker per university, filtered),
   `/api/map/institution-authors` (authors of one university), `/api/map/researchers`
-  (geo points, bbox), `/api/map/state-aggregates` (choropleth), `/api/map/arcs?level=
+  (geo points; `limit` ≤ 2000, and an unfiltered pull is capped hard — pass a `bbox`
+  or a filter for more; a malformed `bbox` is a 422, not a silent unfiltered pull),
+  `/api/map/state-aggregates` (choropleth), `/api/map/arcs?level=
   state|institution|author` (co-authorship arcs at three granularities).
 - **Topics / graph / articles / stats:** `/api/topics`, `/api/graph?min_degree=`
   (full precomputed graph for Sigma), `/api/articles` (FTS) + `/{id}`, `/api/stats`.
