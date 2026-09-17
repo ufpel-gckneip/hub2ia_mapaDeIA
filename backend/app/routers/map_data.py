@@ -117,13 +117,18 @@ async def map_researchers(
         where.append("r.display_name ILIKE :q")
         params["q"] = f"%{q}%"
     if bbox:
+        parts = bbox.split(",")
+        if len(parts) != 4:
+            raise HTTPException(
+                422, "bbox must be 'minLng,minLat,maxLng,maxLat' (4 comma-separated numbers)"
+            )
         try:
-            mnx, mny, mxx, mxy = (float(x) for x in bbox.split(","))
-            where.append("r.geom && ST_MakeEnvelope(:mnx,:mny,:mxx,:mxy,4326)")
-            params.update(mnx=mnx, mny=mny, mxx=mxx, mxy=mxy)
-            bbox_applied = True
+            mnx, mny, mxx, mxy = (float(x) for x in parts)
         except ValueError:
-            pass
+            raise HTTPException(422, "bbox coordinates must be numbers") from None
+        where.append("r.geom && ST_MakeEnvelope(:mnx,:mny,:mxx,:mxy,4326)")
+        params.update(mnx=mnx, mny=mny, mxx=mxx, mxy=mxy)
+        bbox_applied = True
     # Clamp unfiltered pulls; a bbox or any sidebar filter unlocks the full limit.
     narrowed = bool(topic_id or q or min_articles > 1 or bbox_applied)
     params["limit"] = limit if narrowed else min(limit, UNFILTERED_POINT_CAP)

@@ -89,8 +89,13 @@ One branch per item, merged to `main` via PR:
   `DOCUMENTATION.md` §5. `test_smoke.py::test_map_researchers_dump_capped`.
   _Done when:_ an unfiltered request can't pull the entire researcher table.
 
-- [ ] **11. Return 422 on bad `bbox`** — `fix/bbox-validation`
-  `map_data.py`: replace `except ValueError: pass` with a 422.
+- [~] **11. Return 422 on bad `bbox`** — `fix/bbox-validation` _(implemented — ruff clean, 26 tests pass; awaiting your testing + PR)_
+  `map_data.py` `/map/researchers`: the silent `except ValueError: pass` is gone. A `bbox` is now
+  parsed strictly — wrong arity (≠ 4 comma-separated values) or non-numeric coords each raise
+  `HTTPException(422)` with a clear message, instead of falling through to an unfiltered (capped)
+  pull that looks filtered. A well-formed bbox still applies the `ST_MakeEnvelope` filter.
+  `test_smoke.py::test_map_researchers_bad_bbox_is_422` asserts 422 for `"1,2,3"`, `"a,b,c,d"`,
+  `"1,2,3,4,5"` and 200 for a valid box.
   _Done when:_ a malformed `bbox` returns a validation error, not silent full results.
 
 ## P2 — Frontend UX & accessibility
